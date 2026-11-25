@@ -15,6 +15,7 @@ import (
 	_ "time/tzdata" // 内嵌时区库，容器里没有 tzdata 也能解析 Asia/Shanghai
 	"unicode"
 
+	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/ai"
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/entropy"
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/httpapi"
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/store"
@@ -255,9 +256,18 @@ func runServe(args []string) error {
 		return err
 	}
 
+	aiCfg := ai.LoadConfig()
+	var aiClient *ai.Client
+	if aiCfg.Enabled() {
+		aiClient = ai.NewClient(aiCfg)
+		fmt.Printf("AI 解读已启用: provider=%s model=%s\n", aiCfg.Provider(), aiCfg.Model)
+	} else {
+		fmt.Println("AI 解读未配置：使用离线盘面摘要；设置 MINGYUN_AI_BASE_URL 与 MINGYUN_AI_MODEL 后启用")
+	}
+
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           httpapi.New(version, store.NewMemory(), es),
+		Handler:           httpapi.New(version, store.NewMemory(), es, aiClient),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
