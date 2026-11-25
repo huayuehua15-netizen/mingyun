@@ -49,6 +49,29 @@ jobs:
           (cd paipan && go test -race -count=1 ./...)
           (cd apps/api && go test -race -count=1 ./...)
 
+  web:
+    name: 前端构建
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci --no-audit --no-fund
+
+      - name: 构建
+        run: npm run build
+
   docker:
     name: 镜像构建与冒烟
     runs-on: ubuntu-latest
@@ -57,8 +80,11 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 构建镜像
+      - name: 构建 API 镜像
         run: docker build -t mingyun:ci .
+
+      - name: 构建 Web 镜像
+        run: docker build -t mingyun-web:ci apps/web
 
       - name: 冒烟测试
         run: |
