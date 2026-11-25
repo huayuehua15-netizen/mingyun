@@ -13,25 +13,32 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/ai"
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/entropy"
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/store"
 )
 
 // Server HTTP 服务。
 type Server struct {
-	version string
-	store   store.ChartStore
-	entropy *entropy.Source
-	now     func() time.Time
+	version  string
+	store    store.ChartStore
+	entropy  *entropy.Source
+	aiClient *ai.Client
+	now      func() time.Time
 }
 
 // New 构造 HTTP 处理器。
-func New(version string, st store.ChartStore, es *entropy.Source) http.Handler {
+func New(version string, st store.ChartStore, es *entropy.Source, aiClients ...*ai.Client) http.Handler {
+	var aiClient *ai.Client
+	if len(aiClients) > 0 {
+		aiClient = aiClients[0]
+	}
 	s := &Server{
-		version: version,
-		store:   st,
-		entropy: es,
-		now:     time.Now,
+		version:  version,
+		store:    st,
+		entropy:  es,
+		aiClient: aiClient,
+		now:      time.Now,
 	}
 
 	mux := http.NewServeMux()
@@ -42,6 +49,7 @@ func New(version string, st store.ChartStore, es *entropy.Source) http.Handler {
 	mux.HandleFunc("POST /api/v1/charts/{method}/cast", s.handleCast)
 	mux.HandleFunc("GET /api/v1/charts", s.handleListCharts)
 	mux.HandleFunc("GET /api/v1/charts/{id}", s.handleGetChart)
+	mux.HandleFunc("POST /api/v1/charts/{id}/interpret", s.handleInterpret)
 	mux.HandleFunc("/", s.handleNotFound)
 
 	return withRequestID(mux)
