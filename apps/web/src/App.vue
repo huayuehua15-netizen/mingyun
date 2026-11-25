@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { castLiuYao, fetchCalendar } from './api'
+import { castLiuYao, fetchCalendar, streamInterpret } from './api'
+import type { InterpretEvent } from './api'
 import type { CalendarContext, ChartView } from './types'
 import LiuYaoBoard from './components/LiuYaoBoard.vue'
 
@@ -26,6 +27,27 @@ const questionEl = ref<HTMLInputElement | null>(null)
 const previewMode = ref(false)
 let replayAt = ''
 
+type ReadingStatus = 'idle' | 'loading' | 'streaming' | 'done' | 'error'
+interface ReadingState {
+  status: ReadingStatus
+  mode: 'ai' | 'offline' | ''
+  model: string
+  provider: string
+  text: string
+  error: string
+}
+
+const reading = ref<ReadingState>({
+  status: 'idle',
+  mode: '',
+  model: '',
+  provider: '',
+  text: '',
+  error: ''
+})
+let readingAbort: AbortController | null = null
+let readingSeq = 0
+
 const GUAS = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻']
 const CN_NUMS = ['一', '二', '三', '四', '五', '六']
 const ORDER = [5, 4, 3, 2, 1, 0]
@@ -49,6 +71,79 @@ const spinMoving = computed(() => spinKind.value.startsWith('老'))
 const boardRevealed = 6
 
 const coreFacts = computed(() => chart.value?.facts ?? [])
+
+interface ReadingSections {
+  overview: string
+  verdict: string
+  timing: string
+  advice: string
+}
+
+const readingBusy = computed(
+  () => reading.value.status === 'loading' || reading.value.status === 'streaming'
+)
+
+const readingStatusText = computed(() => {
+  const r = reading.value
+  if (r.status === 'loading') return '正在连接解读…'
+  if (r.status === 'streaming') return r.mode === 'ai' ? `${r.model} · 流式解读` : '离线摘要 · 生成中'
+  if (r.status === 'done') return r.mode === 'ai' ? `${r.model} · 解读完成` : '未配置模型 · 离线摘要'
+  if (r.status === 'error') return '解读失败 · 盘面仍可查看'
+  return '只列盘面事实'
+})
+
+function parseReading(text: string): ReadingSections {
+  const out: ReadingSections = { overview: '', verdict: '', timing: '', advice: '' }
+  if (!text.trim()) return out
+
+  const map: Record<string, keyof ReadingSections> = {
+    盘面要点: 'overview',
+    断语: 'verdict',
+    应期与走向: 'timing',
+    应期: 'timing',
+    建议: 'advice'
+  }
+  const raw: Record<keyof ReadingSections, string[]> = {
+    overview: [],
+    verdict: [],
+    timing: [],
+    advice: []
+  }
+  let current: keyof ReadingSections | '' = ''
+  let found = false
+
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    const heading = line.match(
+      /^\s{0,3}#{1,3}\s*(?:\*\*)?\s*(盘面要点|断语|应期与走向|应期|建议)\s*(?:\*\*)?\s*[:：]?\s*$/
+    )
+    if (heading) {
+      current = map[heading[1]]
+      found = true
+      continue
+    }
+    if (current) raw[current].push(line)
+    else raw.overview.push(line)
+  }
+
+  const clean = (lines: string[]) =>
+    lines
+      .join('\n')
+      .replace(/\*\*/g, '')
+      .replace(/^\s*#+\s*/gm, '')
+      .trim()
+
+  if (!found) {
+    out.verdict = clean(raw.overview)
+    return out
+  }
+  out.overview = clean(raw.overview)
+  out.verdict = clean(raw.verdict)
+  out.timing = clean(raw.timing)
+  out.advice = clean(raw.advice)
+  return out
+}
+
+const readingSections = computed(() => parseReading(reading.value.text))
 
 const localBacks = computed(() => tosses.value.map((coins) => coins.reduce((a, b) => a + b, 0)))
 
@@ -142,6 +237,7 @@ function isYang(i: number): boolean {
 
 function setMode(next: 'coin' | 'manual') {
   if (shaking.value || submitting.value || mode.value === next) return
+  resetReading()
   mode.value = next
   chart.value = null
   tosses.value = []
@@ -149,10 +245,78 @@ function setMode(next: 'coin' | 'manual') {
 }
 
 function reset() {
+  resetReading()
   question.value = ''
   chart.value = null
   tosses.value = []
   error.value = ''
+}
+
+function resetReading() {
+  readingAbort?.abort()
+  readingAbort = null
+  readingSeq += 1
+  reading.value = {
+    status: 'idle',
+    mode: '',
+    model: '',
+    provider: '',
+    text: '',
+    error: ''
+  }
+}
+
+async function startReading() {
+  const current = chart.value
+  if (!current) return
+
+  readingAbort?.abort()
+  const seq = ++readingSeq
+  const ctrl = new AbortController()
+  readingAbort = ctrl
+  reading.value = {
+    status: 'loading',
+    mode: '',
+    model: '',
+    provider: '',
+    text: '',
+    error: ''
+  }
+
+  try {
+    await streamInterpret(
+      current.chart_id,
+      current.question || question.value.trim() || '',
+      (ev: InterpretEvent) => {
+        if (seq !== readingSeq) return
+        const r = reading.value
+        if (ev.event === 'meta') {
+          r.mode = ev.data.mode
+          r.model = ev.data.model
+          r.provider = ev.data.provider
+          r.status = 'streaming'
+        } else if (ev.event === 'delta') {
+          r.text += ev.data.text
+          r.status = 'streaming'
+        } else if (ev.event === 'done') {
+          r.status = 'done'
+        } else if (ev.event === 'error') {
+          r.status = 'error'
+          r.error = ev.data.message || '解读服务暂时不可用'
+        }
+      },
+      ctrl.signal
+    )
+    if (seq === readingSeq && reading.value.status === 'streaming') {
+      reading.value.status = 'done'
+    }
+  } catch (e) {
+    if (ctrl.signal.aborted || seq !== readingSeq) return
+    reading.value.status = 'error'
+    reading.value.error = e instanceof Error ? e.message : '解读失败'
+  } finally {
+    if (readingAbort === ctrl) readingAbort = null
+  }
 }
 
 function lineState(v: string): string {
@@ -231,6 +395,7 @@ async function submitCoinChart() {
     if (data.calendar) calendar.value = data.calendar
     await nextTick()
     window.setTimeout(scrollToBoard, 260)
+    void startReading()
   } catch (e) {
     error.value = e instanceof Error ? e.message : '排盘失败'
   } finally {
@@ -252,6 +417,7 @@ async function submitManual() {
     if (data.calendar) calendar.value = data.calendar
     await nextTick()
     window.setTimeout(scrollToBoard, 200)
+    void startReading()
   } catch (e) {
     error.value = e instanceof Error ? e.message : '排盘失败'
   } finally {
@@ -395,7 +561,7 @@ function formatTime(iso: string): string {
           v-for="(t, i) in strip"
           :key="i"
           class="cast-cell"
-          :class="{
+          :class="{ 
             'is-fresh': !!t && i === tosses.length - 1,
             'is-next': !chart && i === tosses.length && !shaking
           }"
@@ -543,11 +709,28 @@ function formatTime(iso: string): string {
       <header class="reading-head">
         <span class="seal">断</span>
         <h2>解读</h2>
-        <em>AI 未接入 · 只列盘面事实</em>
+        <em>{{ readingStatusText }}</em>
+        <button
+          class="reading-refresh"
+          :disabled="readingBusy"
+          @click="startReading"
+        >
+          {{ reading.status === 'error' ? '重试' : '重新解读' }}
+        </button>
       </header>
 
+      <div class="reading-ai-overview">
+        <span class="ai-label">盘面要点</span>
+        <p v-if="readingSections.overview" class="reading-ai-lede">{{ readingSections.overview }}</p>
+        <p v-else-if="readingBusy" class="reading-ai-lede is-placeholder">正在把盘面翻译成人话…</p>
+        <p v-else-if="reading.status === 'error'" class="reading-ai-lede is-placeholder">
+          解读失败，盘面仍可查看。
+        </p>
+        <p v-else class="reading-ai-lede is-placeholder">暂无解读。</p>
+      </div>
+
       <div class="facts-section">
-        <h3><span class="num">一</span>盘面要点</h3>
+        <h3><span class="num">一</span>关键事实</h3>
         <dl class="facts-grid">
           <div v-for="f in coreFacts" :key="f.key" class="fact">
             <dt>{{ f.label }}</dt>
@@ -559,24 +742,44 @@ function formatTime(iso: string): string {
       <div class="reading-columns">
         <article class="reading-block">
           <h3><span class="num">二</span>断语</h3>
-          <p class="reading-lede">卦已成，断未至。</p>
-          <p class="reading-note">
-            现在还没有接模型，所以这里只给引擎算出的盘面事实，没有断语。接入后按「盘面要点 / 断语 / 应期 / 建议」四段流式展开，每一句都要求能回溯到具体爻位与事实。
-          </p>
+          <p v-if="readingSections.verdict" class="reading-ai-text">{{ readingSections.verdict }}</p>
+          <p v-else-if="readingBusy" class="reading-note">正在解读…</p>
+          <div v-else-if="reading.status === 'error'" class="reading-error">
+            <p>{{ reading.error }}</p>
+            <button class="reading-retry" @click="startReading">重试</button>
+          </div>
+          <p v-else class="reading-note">暂无断语。</p>
         </article>
         <article class="reading-block">
           <h3><span class="num">三</span>应期与建议</h3>
-          <div class="blank-field">
-            <label>应期</label>
-            <span>—</span>
-          </div>
-          <div class="blank-field">
-            <label>建议</label>
-            <span>—</span>
-          </div>
-          <p class="reading-note">应期会给出时间区间与触发条件；建议只给可以落地的动作，不作吉凶恐吓。</p>
+          <template v-if="readingSections.timing || readingSections.advice">
+            <div v-if="readingSections.timing" class="ai-field">
+              <label>应期与走向</label>
+              <p class="reading-ai-text">{{ readingSections.timing }}</p>
+            </div>
+            <div v-if="readingSections.advice" class="ai-field">
+              <label>建议</label>
+              <p class="reading-ai-text">{{ readingSections.advice }}</p>
+            </div>
+          </template>
+          <p v-else-if="readingBusy" class="reading-note">正在解读…</p>
+          <p v-else-if="reading.status === 'error'" class="reading-note">解读失败后暂无应期与建议。</p>
+          <p v-else class="reading-note">暂无应期与建议。</p>
         </article>
       </div>
+
+      <p class="reading-disclaimer">
+        <template v-if="reading.status === 'error'">
+          解读未完成，盘面事实仍以引擎计算为准。可稍后重试，或检查服务端模型配置。
+        </template>
+        <template v-else-if="reading.mode === 'ai'">
+          以上解读由 {{ reading.model }} 生成，仅供传统文化学习与娱乐参考；盘面事实以引擎计算为准。
+        </template>
+        <template v-else-if="reading.mode === 'offline'">
+          以上为离线盘面摘要，只列事实，不含吉凶判断。配置模型后可获得完整四段解读。
+        </template>
+        <template v-else>解读生成中；盘面事实以引擎计算为准。</template>
+      </p>
     </section>
 
     <footer class="footnote">
