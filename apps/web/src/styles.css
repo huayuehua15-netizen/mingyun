@@ -1,0 +1,1647 @@
+:root {
+  --paper: #efe7d7;
+  --paper-2: #f8f3e8;
+  --ink: #17130e;
+  --ink-2: #4f483d;
+  --line: #d6cab5;
+  --cinnabar: #9e3327;
+  --stone: #2f4e5f;
+  --rattan: #b08a4f;
+  --grey: #8b8172;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-size: 15px;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  letter-spacing: 0.02em;
+}
+
+::selection {
+  background: rgba(158, 51, 39, 0.16);
+}
+
+h1,
+h2,
+h3,
+.brand,
+.serif {
+  font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+  font-weight: 600;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button:focus,
+input:focus,
+select:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 1px solid var(--cinnabar);
+  outline-offset: 3px;
+}
+
+.page {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 40px 40px;
+}
+
+/* ---------- 顶栏 ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 76px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 30px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  text-decoration: none;
+  line-height: 1;
+}
+
+.brand-mark {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-right: 2px;
+}
+
+.brand span {
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.32em;
+  color: var(--grey);
+  transform: translateY(1px);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.nav a,
+.nav span {
+  position: relative;
+  color: inherit;
+  text-decoration: none;
+  padding: 4px 0;
+}
+
+.nav a:hover,
+.nav a.is-active {
+  color: var(--ink);
+}
+
+.nav a.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--cinnabar);
+}
+
+.nav .is-soon {
+  color: var(--grey);
+  cursor: default;
+}
+
+.nav sup {
+  margin-left: 3px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--rattan);
+  vertical-align: super;
+}
+
+.nav-div {
+  width: 1px;
+  height: 14px;
+  background: var(--line);
+}
+
+/* ---------- 题头 ---------- */
+
+.masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 80px;
+  align-items: end;
+  padding: 46px 0 36px;
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  color: var(--cinnabar);
+}
+
+.kicker i {
+  display: block;
+  width: 28px;
+  height: 1px;
+  background: var(--cinnabar);
+}
+
+.masthead h1 {
+  margin: 16px 0 16px;
+  font-size: 62px;
+  line-height: 1.12;
+  letter-spacing: 0.05em;
+}
+
+.masthead p {
+  margin: 0;
+  max-width: 560px;
+  font-size: 14px;
+  line-height: 2;
+  color: var(--ink-2);
+}
+
+.almanac {
+  position: relative;
+  padding-left: 28px;
+  border-left: 1px solid var(--line);
+  padding-bottom: 6px;
+}
+
+.almanac-date {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.almanac-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 18px;
+  margin-top: 14px;
+}
+
+.almanac-list div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.almanac-list label {
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--grey);
+}
+
+.almanac-list span {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+
+.almanac-foot {
+  margin-top: 14px;
+  padding-right: 54px;
+  font-size: 10.5px;
+  color: var(--grey);
+  letter-spacing: 0.04em;
+}
+
+.almanac-seal {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* ---------- 起卦 ---------- */
+
+.cast-panel {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+}
+
+.cast-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 168px 128px;
+  gap: 30px;
+  align-items: end;
+  padding: 22px 28px 18px;
+}
+
+.ask label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--grey);
+}
+
+.ask label span {
+  margin-left: 8px;
+  color: var(--line);
+  letter-spacing: 0.18em;
+}
+
+.ask input {
+  width: 100%;
+  padding: 7px 0 9px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 22px;
+  letter-spacing: 0.02em;
+  transition: border-color 200ms ease-out;
+}
+
+.ask input:focus {
+  border-bottom-color: var(--cinnabar);
+}
+
+.ask input::placeholder {
+  color: var(--grey);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+}
+
+.mode-switch {
+  display: flex;
+  gap: 18px;
+  padding-bottom: 6px;
+}
+
+.mode-btn {
+  padding: 2px 0 5px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: var(--grey);
+  cursor: pointer;
+  transition: color 200ms ease-out, border-color 200ms ease-out;
+}
+
+.mode-btn:hover {
+  color: var(--ink);
+}
+
+.mode-btn.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--cinnabar);
+}
+
+.cast-btn {
+  height: 54px;
+  padding: 0;
+  border: 1px solid var(--cinnabar);
+  background: var(--cinnabar);
+  color: var(--paper-2);
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  cursor: pointer;
+  transition: background 200ms ease-out, color 200ms ease-out;
+}
+
+.cast-btn:hover:not(:disabled) {
+  background: transparent;
+  color: var(--cinnabar);
+}
+
+.cast-btn:disabled {
+  border-color: var(--grey);
+  background: var(--grey);
+  cursor: default;
+}
+
+.cast-btn.is-need-question {
+  background: transparent;
+  border-color: var(--cinnabar);
+  color: var(--cinnabar);
+  opacity: 1;
+}
+
+.cast-btn.is-need-question:hover:not(:disabled) {
+  background: rgba(158, 51, 39, 0.06);
+  border-color: var(--cinnabar);
+  color: var(--cinnabar);
+}
+
+.cast-btn.is-tossing {
+  visibility: hidden;
+}
+
+.coin-strip {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+
+.toss-overlay {
+  position: absolute;
+  top: -20px;
+  left: 0;
+  right: 0;
+  height: 160px;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 0 56px 18px;
+  background: var(--paper-2);
+  border-top: 1px solid var(--line);
+}
+
+.toss-caption {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.toss-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.toss-caption b {
+  display: block;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+}
+
+.toss-caption em {
+  display: block;
+  margin-top: 4px;
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: var(--grey);
+}
+
+.toss-coins {
+  display: flex;
+  align-items: flex-end;
+  gap: 30px;
+  align-self: flex-end;
+  margin-bottom: 0;
+}
+
+.toss-slot {
+  position: relative;
+  display: block;
+  width: 60px;
+  height: 60px;
+}
+
+.coin-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  width: 42px;
+  height: 6px;
+  margin-left: -21px;
+  border-radius: 50%;
+  background: rgba(23, 19, 14, 0.16);
+  animation: toss-shadow 720ms cubic-bezier(0.18, 0.72, 0.22, 1) var(--d) both;
+}
+
+.toss-coin {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper-2);
+  animation: toss-coin 720ms cubic-bezier(0.18, 0.72, 0.22, 1) var(--d) both;
+}
+
+.toss-coin::after {
+  content: "";
+  position: absolute;
+  inset: 19px;
+  border: 1px solid var(--ink);
+  background: var(--paper-2);
+}
+
+.toss-coin.is-back {
+  background: var(--ink);
+}
+
+.toss-coin.is-back::after {
+  border-color: var(--paper-2);
+  background: var(--paper-2);
+}
+
+.toss-result {
+  min-width: 170px;
+  text-align: right;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--grey);
+}
+
+.toss-result strong {
+  display: block;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--cinnabar);
+}
+
+.toss-result span {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--ink-2);
+}
+
+.toss-result.is-show {
+  animation: result-in 320ms cubic-bezier(0.2, 0.9, 0.25, 1.12) both;
+}
+
+.toss-overlay.is-landed {
+  animation: stage-thud 240ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes result-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stage-thud {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  32% {
+    transform: translateY(2px);
+  }
+  68% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes toss-shadow {
+  0%,
+  100% {
+    opacity: 0.16;
+    transform: scaleX(1);
+  }
+  9% {
+    opacity: 0.2;
+    transform: scaleX(1.05);
+  }
+  42% {
+    opacity: 0.05;
+    transform: scaleX(0.42);
+  }
+  85% {
+    opacity: 0.2;
+    transform: scaleX(1.12);
+  }
+  92% {
+    opacity: 0.13;
+    transform: scaleX(0.94);
+  }
+}
+
+@keyframes toss-coin {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(1, 1);
+  }
+  9% {
+    transform: translateY(5px) rotate(0deg) scale(1.06, 0.88);
+  }
+  25% {
+    transform: translateY(-40px) rotate(220deg) scale(0.94, 1.08);
+  }
+  42% {
+    transform: translateY(-80px) rotate(540deg) scale(1.03, 0.7);
+  }
+  58% {
+    transform: translateY(-62px) rotate(810deg) scale(1, 1);
+  }
+  76% {
+    transform: translateY(-16px) rotate(1020deg) scale(0.98, 1.05);
+  }
+  85% {
+    transform: translateY(0) rotate(1080deg) scale(1.12, 0.84);
+  }
+  92% {
+    transform: translateY(-9px) rotate(1082deg) scale(0.96, 1.06);
+  }
+  97% {
+    transform: translateY(0) rotate(1084deg) scale(1.02, 0.98);
+  }
+  100% {
+    transform: translateY(0) rotate(1080deg) scale(1, 1);
+  }
+}
+
+.cast-cell {
+  display: flex;
+  flex-direction: column;
+  min-height: 140px;
+  padding: 16px 18px 14px;
+  border-right: 1px solid var(--line);
+}
+
+.cast-cell:last-child {
+  border-right: 0;
+}
+
+.cell-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--ink-2);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.cell-head em {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--line);
+}
+
+.cast-cell.is-next .cell-head span {
+  color: var(--cinnabar);
+}
+
+.cast-cell.is-next .cell-head em {
+  color: var(--cinnabar);
+}
+
+.coins {
+  display: flex;
+  gap: 8px;
+  margin: auto 0;
+}
+
+.coin {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper-2);
+  transition: background 200ms ease-out;
+}
+
+.coin::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 1px solid var(--ink);
+  background: var(--paper-2);
+}
+
+.coin.is-back {
+  background: var(--ink);
+}
+
+.coin.is-back::after {
+  border-color: var(--paper-2);
+  background: var(--paper-2);
+}
+
+.cell-foot {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.cell-foot.is-dim {
+  color: var(--grey);
+}
+
+.select-wrap {
+  position: relative;
+  margin: auto 0 12px;
+}
+
+.select-wrap::after {
+  content: "⌄";
+  position: absolute;
+  right: 2px;
+  bottom: 4px;
+  font-size: 12px;
+  color: var(--grey);
+  pointer-events: none;
+}
+
+.select-wrap select {
+  width: 100%;
+  padding: 5px 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.select-wrap select:focus {
+  border-bottom-color: var(--cinnabar);
+}
+
+.error-line {
+  margin: 0;
+  padding: 0 28px 14px;
+  font-size: 12px;
+  color: var(--cinnabar);
+}
+
+/* ---------- 卦盘 ---------- */
+
+.board-panel {
+  margin-top: 26px;
+  padding: 28px 36px 20px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  scroll-margin-top: 16px;
+}
+
+.board-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+}
+
+.gua-kicker {
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  color: var(--grey);
+}
+
+.gua-block h2 {
+  margin: 4px 0 0;
+  font-size: 46px;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+}
+
+.gua-change {
+  flex: none;
+  text-align: right;
+  line-height: 1.6;
+}
+
+.gua-change span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--grey);
+}
+
+.gua-change strong {
+  display: block;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+}
+
+.gua-change em {
+  display: block;
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--grey);
+}
+
+.gua-change.is-quiet strong {
+  color: var(--grey);
+  font-size: 18px;
+}
+
+.board-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 26px;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--grey);
+  letter-spacing: 0.05em;
+}
+
+.board-meta b {
+  margin-left: 3px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+
+.scroll-hint {
+  display: none;
+  color: var(--cinnabar);
+}
+
+.board-scroll {
+  overflow-x: auto;
+}
+
+.board-scroll > * {
+  display: block;
+  width: 100%;
+  min-width: 760px;
+  margin: 6px 0 0;
+}
+
+.entropy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px dashed var(--line);
+  font-size: 10.5px;
+  color: var(--grey);
+  letter-spacing: 0.04em;
+}
+
+.entropy b {
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+/* 未占 */
+
+.empty-board {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 46px;
+  align-items: center;
+  padding: 44px 56px 40px;
+}
+
+.empty-seal {
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  border: 2px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 36px;
+  letter-spacing: 0.12em;
+  text-indent: 0.12em;
+}
+
+.empty-hint {
+  margin: 0 0 16px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  letter-spacing: 0.28em;
+  color: var(--ink-2);
+}
+
+.empty-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.empty-steps li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 26px 0 0;
+  border-right: 1px solid var(--line);
+}
+
+.empty-steps li:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+
+.empty-steps i {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1;
+}
+
+.empty-steps b {
+  display: block;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.empty-steps em {
+  display: block;
+  margin-top: 3px;
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--grey);
+}
+
+/* ---------- 卦未成：逐爻生长 ---------- */
+
+.partial-board {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 46px;
+  align-items: start;
+  padding: 32px 56px 30px;
+}
+
+.partial-seal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 96px;
+  height: 118px;
+  border: 2px solid var(--cinnabar);
+  color: var(--cinnabar);
+}
+
+.partial-count {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+}
+
+.partial-count b {
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.partial-count em {
+  font-style: normal;
+  font-size: 13px;
+}
+
+.partial-seal span {
+  font-size: 10.5px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: var(--grey);
+}
+
+.partial-main {
+  min-width: 0;
+}
+
+.partial-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.partial-head strong {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+}
+
+.partial-head span {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--grey);
+}
+
+.partial-lines {
+  margin-top: 12px;
+}
+
+.pline-row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  height: 36px;
+}
+
+.pline-label {
+  width: 38px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+
+.pline-mark {
+  display: flex;
+  gap: 20px;
+  width: 540px;
+  max-width: 58%;
+  height: 8px;
+  transform-origin: left center;
+}
+
+.pline-mark i {
+  flex: 1;
+  background: var(--ink);
+}
+
+.pline-mark.is-moving i {
+  background: var(--cinnabar);
+}
+
+.pline-mark.is-new {
+  animation: line-in 420ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.pline-wait {
+  width: 540px;
+  max-width: 58%;
+  height: 0;
+  border-top: 1px dashed var(--line);
+}
+
+.pline-foot {
+  margin-left: auto;
+  width: 118px;
+  text-align: right;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.pline-foot.is-dim {
+  color: var(--grey);
+}
+
+@keyframes line-in {
+  from {
+    opacity: 0.2;
+    transform: scaleX(0.12);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* ---------- 解读 ---------- */
+
+.reading-panel {
+  margin-top: 26px;
+  padding: 0 36px 26px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+}
+
+.reading-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 22px 0 14px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.seal {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.reading-head h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.14em;
+}
+
+.reading-head em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: var(--grey);
+}
+
+.facts-section {
+  padding: 20px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.facts-section h3,
+.reading-block h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 12px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: var(--ink-2);
+}
+
+.num {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 10.5px;
+  line-height: 1;
+}
+
+.facts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 38px;
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.fact dt {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--grey);
+  line-height: 1.9;
+}
+
+.fact dd {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+
+.reading-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 44px;
+  padding-top: 22px;
+}
+
+.reading-block {
+  min-width: 0;
+}
+
+.reading-lede {
+  margin: 10px 0 12px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 30px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.reading-note {
+  margin: 0;
+  max-width: 620px;
+  font-size: 12px;
+  line-height: 2;
+  color: var(--grey);
+}
+
+.blank-field {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.blank-field label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--grey);
+}
+
+.blank-field span {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 15px;
+  color: var(--grey);
+}
+
+/* ---------- 页脚 ---------- */
+
+.footnote {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 34px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--grey);
+}
+
+.fade-in {
+  animation: fade-in 300ms ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1100px) {
+  .page {
+    padding: 0 24px 32px;
+  }
+
+  .masthead {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 34px 0 28px;
+  }
+
+  .almanac {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: 18px 0 0;
+  }
+
+  .cast-row {
+    grid-template-columns: minmax(0, 1fr) 128px;
+    gap: 18px;
+  }
+
+  .mode-switch {
+    grid-column: 1 / 2;
+    grid-row: 2;
+    padding-bottom: 0;
+  }
+
+  .cast-btn {
+    grid-column: 2 / 3;
+    grid-row: 1 / 3;
+    height: 100%;
+  }
+
+  .coin-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cast-cell:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .cast-cell:nth-child(-n + 3) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .cast-cell {
+    min-height: 132px;
+  }
+
+  .coin {
+    width: 26px;
+    height: 26px;
+  }
+
+  .coin::after {
+    inset: 8px;
+  }
+
+  .facts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reading-columns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .empty-board {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 32px;
+    padding: 36px 32px 32px;
+  }
+
+  .empty-seal {
+    width: 88px;
+    height: 88px;
+    font-size: 30px;
+  }
+
+  .partial-board {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 32px;
+    padding: 28px 32px;
+  }
+
+  .partial-seal {
+    width: 84px;
+    height: 104px;
+  }
+
+  .partial-count b {
+    font-size: 38px;
+  }
+
+  .toss-overlay {
+    top: -18px;
+    height: 150px;
+    padding: 0 28px 16px;
+    gap: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .toss-coins {
+    align-self: flex-end;
+    margin-bottom: 0;
+  }
+
+  .toss-slot {
+    width: 50px;
+    height: 50px;
+  }
+
+  .coin-shadow {
+    bottom: -10px;
+    width: 34px;
+    height: 5px;
+    margin-left: -17px;
+  }
+
+  .toss-coin::after {
+    inset: 16px;
+  }
+
+  .toss-num {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .toss-caption b {
+    font-size: 20px;
+  }
+
+  .toss-result strong {
+    font-size: 28px;
+  }
+
+  .scroll-hint {
+    display: inline;
+  }
+}
+
+@media (max-width: 680px) {
+  .page {
+    padding: 0 18px 28px;
+  }
+
+  .topbar {
+    height: 64px;
+  }
+
+  .brand {
+    font-size: 24px;
+  }
+
+  .brand span {
+    display: none;
+  }
+
+  .nav {
+    gap: 16px;
+    font-size: 12px;
+  }
+
+  .nav .is-soon {
+    display: none;
+  }
+
+  .masthead h1 {
+    font-size: 38px;
+  }
+
+  .masthead p {
+    font-size: 13px;
+  }
+
+  .cast-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px 18px 14px;
+  }
+
+  .mode-switch {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .cast-btn {
+    grid-column: auto;
+    grid-row: auto;
+    height: 50px;
+  }
+
+  .coin-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cast-cell {
+    min-height: 116px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .cast-cell:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .cast-cell:nth-child(-n + 4) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .coin {
+    width: 24px;
+    height: 24px;
+  }
+
+  .coin::after {
+    inset: 8px;
+  }
+
+  .board-panel,
+  .reading-panel {
+    padding: 18px;
+  }
+
+  .board-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .gua-block h2 {
+    font-size: 34px;
+  }
+
+  .gua-change {
+    text-align: left;
+  }
+
+  .facts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .empty-board {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 26px;
+    padding: 32px 18px 28px;
+  }
+
+  .empty-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .empty-steps li {
+    padding: 12px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .empty-steps li:last-child {
+    border-bottom: 0;
+  }
+
+  .partial-board {
+    grid-template-columns: 66px minmax(0, 1fr);
+    align-items: start;
+    gap: 20px;
+    padding: 24px 20px 22px;
+  }
+
+  .partial-seal {
+    width: 66px;
+    height: 80px;
+    gap: 5px;
+  }
+
+  .partial-count b {
+    font-size: 30px;
+  }
+
+  .partial-count em {
+    font-size: 11px;
+  }
+
+  .partial-seal span {
+    font-size: 9px;
+  }
+
+  .partial-head strong {
+    font-size: 18px;
+  }
+
+  .partial-head span {
+    font-size: 10px;
+  }
+
+  .pline-row {
+    gap: 10px;
+    height: 32px;
+  }
+
+  .pline-label {
+    width: 30px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+
+  .pline-mark,
+  .pline-wait {
+    flex: 1;
+    width: auto;
+    max-width: none;
+  }
+
+  .pline-mark {
+    gap: 12px;
+  }
+
+  .pline-foot {
+    width: 92px;
+    font-size: 10.5px;
+  }
+
+  .toss-overlay {
+    top: 0;
+    height: 150px;
+    padding: 0 16px 14px;
+    gap: 10px;
+  }
+
+  .toss-num {
+    width: 34px;
+    height: 34px;
+    font-size: 17px;
+  }
+
+  .toss-caption b {
+    font-size: 17px;
+    letter-spacing: 0.06em;
+  }
+
+  .toss-caption em {
+    display: none;
+  }
+
+  .toss-coins {
+    gap: 12px;
+  }
+
+  .toss-slot {
+    width: 40px;
+    height: 40px;
+  }
+
+  .coin-shadow {
+    bottom: -8px;
+    width: 28px;
+    height: 4px;
+    margin-left: -14px;
+  }
+
+  .toss-coin::after {
+    inset: 12px;
+  }
+
+  .toss-result {
+    min-width: 0;
+  }
+
+  .toss-result strong {
+    font-size: 22px;
+  }
+
+  .toss-result span {
+    margin-top: 5px;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+  }
+
+  .footnote {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
