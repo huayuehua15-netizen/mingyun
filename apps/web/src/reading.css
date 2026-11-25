@@ -1,0 +1,143 @@
+/* AI 解读面板：只在结果页出现，单独成文件，避免继续胀大 styles.css。 */
+
+.reading-refresh {
+  flex: none;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.reading-refresh:hover:not(:disabled) {
+  border-color: var(--cinnabar);
+  color: var(--cinnabar);
+}
+
+.reading-refresh:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.reading-ai-overview {
+  padding: 18px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-label {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: var(--grey);
+}
+
+.reading-ai-lede {
+  margin: 8px 0 0;
+  max-width: 980px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 16px;
+  line-height: 1.95;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reading-ai-lede.is-placeholder {
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  color: var(--grey);
+}
+
+.reading-ai-text {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 2.05;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-field {
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.ai-field:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.ai-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  color: var(--grey);
+}
+
+.reading-error p {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--cinnabar);
+}
+
+.reading-retry {
+  padding: 4px 10px;
+  border: 1px solid var(--cinnabar);
+  background: transparent;
+  color: var(--cinnabar);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.reading-retry:hover {
+  background: rgba(158, 51, 39, 0.06);
+}
+
+.reading-disclaimer {
+  margin: 20px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  line-height: 1.8;
+  letter-spacing: 0.04em;
+  color: var(--grey);
+}
+
+@media (max-width: 680px) {
+  .reading-head {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+
+  .reading-head em {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+  }
+
+  .reading-refresh {
+    margin-left: auto;
+  }
+
+  .reading-columns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .reading-ai-lede {
+    font-size: 15px;
+  }
+}
