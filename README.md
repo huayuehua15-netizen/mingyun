@@ -1,5 +1,7 @@
 # 命云 MingYun
 
+[![CI](https://github.com/huayuehua15-netizen/mingyun/actions/workflows/ci.yml/badge.svg)](https://github.com/huayuehua15-netizen/mingyun/actions/workflows/ci.yml)
+
 开源的 AI 术数排盘平台。支持六爻、大六壬、紫微斗数三种起盘方式，盘面由确定性引擎计算，解读由可自主配置的大模型完成。
 
 **技术栈**：Vue 3 + TypeScript / Go 1.25 / PostgreSQL / Redis / Docker Compose
