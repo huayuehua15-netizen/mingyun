@@ -154,6 +154,19 @@ export type ViewName = 'home' | 'cast' | 'archive' | 'codex'
 
 export type ArchiveStatus = 'pending' | 'reading' | 'done' | 'error'
 
+export type FollowupStatus = 'streaming' | 'done' | 'error'
+
+/** 同一张盘内的一条追问对话，role 只允许 user / assistant。 */
+export interface FollowupMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+  model?: string
+  status?: FollowupStatus
+  error?: string
+}
+
 /**
  * 卦历记录只保存在浏览器本机，不上传服务端。
  * chart 存完整盘面，便于从「卦历」直接翻回原盘。
@@ -172,5 +185,6 @@ export interface ArchiveEntry {
   model: string
   reading: string
   reading_error?: string
+  followups?: FollowupMessage[]
   chart: ChartView
 }

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { castLiuYao, fetchCalendar, streamInterpret } from './api'
+import { castLiuYao, fetchCalendar, streamFollowup, streamInterpret } from './api'
 import type { InterpretEvent } from './api'
-import type { ArchiveEntry, CalendarContext, ChartView, ViewName } from './types'
+import type { ArchiveEntry, CalendarContext, ChartView, FollowupMessage, ViewName } from './types'
 import LiuYaoBoard from './components/LiuYaoBoard.vue'
 import GameHome from './components/GameHome.vue'
 import GameArchive from './components/GameArchive.vue'
@@ -66,6 +66,35 @@ const reading = ref<ReadingState>({
 })
 let readingAbort: AbortController | null = null
 let readingSeq = 0
+
+const MAX_FOLLOWUPS = 6
+const followups = ref<FollowupMessage[]>([])
+const followupInput = ref('')
+const followupError = ref('')
+const followupBusy = ref(false)
+const followupThreadEl = ref<HTMLElement | null>(null)
+let followupAbort: AbortController | null = null
+let followupSeq = 0
+
+const followupUsed = computed(() => followups.value.filter((turn) => turn.role === 'user').length)
+
+const followupReady = computed(
+  () =>
+    !!chart.value &&
+    reading.value.status === 'done' &&
+    reading.value.mode === 'ai' &&
+    !!reading.value.text.trim() &&
+    followupUsed.value < MAX_FOLLOWUPS
+)
+
+const followupLockedText = computed(() => {
+  if (!chart.value) return '先起一卦，再沿这张盘追问。'
+  if (followupUsed.value >= MAX_FOLLOWUPS) return '这张盘已追问 6 轮，建议另起一卦。'
+  if (readingBusy.value) return '首轮解读完成后，可以沿这张盘继续追问。'
+  if (reading.value.status === 'error') return '首轮解读失败；修复后可继续追问。'
+  if (reading.value.mode === 'offline') return '当前是离线摘要，未配置模型；配置后可沿原盘追问。'
+  return '首轮四段先落定，再开始追问。'
+})
 
 const GUAS = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻']
 const CN_NUMS = ['一', '二', '三', '四', '五', '六']
@@ -206,6 +235,43 @@ function navigate(next: ViewName) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+function normalizeFollowupList(input: unknown): FollowupMessage[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .map((item, index): FollowupMessage | null => {
+      if (!item || typeof item !== 'object') return null
+      const raw = item as Partial<FollowupMessage>
+      if (raw.role !== 'user' && raw.role !== 'assistant') return null
+      const content = typeof raw.content === 'string' ? raw.content : ''
+      const error = typeof raw.error === 'string' ? raw.error : undefined
+      if (!content.trim() && !error) return null
+      const status: FollowupMessage['status'] =
+        raw.status === 'streaming' || raw.status === 'done' || raw.status === 'error'
+          ? raw.status === 'streaming'
+            ? content.trim()
+              ? 'done'
+              : 'error'
+            : raw.status
+          : error
+            ? 'error'
+            : 'done'
+      return {
+        id: typeof raw.id === 'string' && raw.id ? raw.id : `followup-${index}-${Date.now()}`,
+        role: raw.role,
+        content,
+        created_at:
+          typeof raw.created_at === 'string' && raw.created_at
+            ? raw.created_at
+            : new Date().toISOString(),
+        model: typeof raw.model === 'string' ? raw.model : undefined,
+        status,
+        error
+      }
+    })
+    .filter((item): item is FollowupMessage => !!item)
+    .slice(-MAX_FOLLOWUPS * 2)
+}
+
 function normalizeArchiveEntry(item: unknown): ArchiveEntry | null {
   if (!item || typeof item !== 'object') return null
   const raw = item as Partial<ArchiveEntry>
@@ -238,6 +304,7 @@ function normalizeArchiveEntry(item: unknown): ArchiveEntry | null {
     model: raw.model || '',
     reading,
     reading_error: raw.reading_error,
+    followups: normalizeFollowupList(raw.followups),
     chart
   }
 }
@@ -267,7 +334,12 @@ function persistArchive() {
 
 function upsertArchiveEntry(
   chartData: ChartView,
-  patch: Partial<Pick<ArchiveEntry, 'question' | 'status' | 'mode' | 'model' | 'reading' | 'reading_error' | 'read_at'>>
+  patch: Partial<
+    Pick<
+      ArchiveEntry,
+      'question' | 'status' | 'mode' | 'model' | 'reading' | 'reading_error' | 'read_at' | 'followups'
+    >
+  >
 ): ArchiveEntry {
   const existing = archive.value.find((item) => item.chart_id === chartData.chart_id)
   const now = new Date().toISOString()
@@ -285,6 +357,7 @@ function upsertArchiveEntry(
     model: patch.model ?? existing?.model ?? '',
     reading: patch.reading ?? existing?.reading ?? '',
     reading_error: patch.reading_error ?? existing?.reading_error,
+    followups: patch.followups ?? existing?.followups ?? [],
     chart: chartData
   }
   archive.value = [entry, ...archive.value.filter((item) => item.chart_id !== entry.chart_id)].slice(
@@ -358,6 +431,13 @@ function openArchive(entry: ArchiveEntry) {
   readingAbort?.abort()
   readingAbort = null
   readingSeq += 1
+  followupAbort?.abort()
+  followupAbort = null
+  followupSeq += 1
+  followups.value = normalizeFollowupList(entry.followups)
+  followupInput.value = ''
+  followupError.value = ''
+  followupBusy.value = false
   chart.value = entry.chart
   question.value = entry.question || entry.chart.question || ''
   if (entry.chart.calendar) calendar.value = entry.chart.calendar
@@ -475,10 +555,21 @@ function startAnother() {
   })
 }
 
+function resetFollowups() {
+  followupAbort?.abort()
+  followupAbort = null
+  followupSeq += 1
+  followups.value = []
+  followupInput.value = ''
+  followupError.value = ''
+  followupBusy.value = false
+}
+
 function resetReading() {
   readingAbort?.abort()
   readingAbort = null
   readingSeq += 1
+  resetFollowups()
   reading.value = {
     status: 'idle',
     mode: '',
@@ -550,6 +641,127 @@ async function startReading() {
 
 function lineState(v: string): string {
   return v.startsWith('老') ? '动' : '静'
+}
+
+function buildFollowupHistory(): { role: 'user' | 'assistant'; content: string }[] {
+  const history: { role: 'user' | 'assistant'; content: string }[] = []
+  if (reading.value.text.trim()) {
+    history.push({ role: 'assistant', content: reading.value.text.trim() })
+  }
+  for (const turn of followups.value) {
+    const content = turn.content.trim()
+    if (!content || turn.status === 'streaming' || turn.status === 'error') continue
+    history.push({ role: turn.role, content })
+  }
+  return history.slice(-10)
+}
+
+function saveFollowups() {
+  const current = chart.value
+  if (!current) return
+  upsertArchiveEntry(current, {
+    followups: followups.value.map((turn) => ({
+      id: turn.id,
+      role: turn.role,
+      content: turn.content,
+      created_at: turn.created_at,
+      model: turn.model,
+      status: turn.status === 'streaming' ? 'done' : turn.status,
+      error: turn.error
+    }))
+  })
+}
+
+function scrollFollowupThread() {
+  nextTick(() => {
+    followupThreadEl.value?.lastElementChild?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  })
+}
+
+function onFollowupKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
+  event.preventDefault()
+  void sendFollowup()
+}
+
+async function sendFollowup() {
+  if (!followupReady.value || followupBusy.value) return
+  const current = chart.value
+  if (!current) return
+  const message = followupInput.value.trim()
+  if (!message) return
+
+  followupAbort?.abort()
+  const seq = ++followupSeq
+  const ctrl = new AbortController()
+  followupAbort = ctrl
+  followupBusy.value = true
+  followupError.value = ''
+
+  const history = buildFollowupHistory()
+  const stamp = new Date().toISOString()
+  const userTurn: FollowupMessage = {
+    id: `u-${Date.now()}-${seq}`,
+    role: 'user',
+    content: message,
+    created_at: stamp,
+    status: 'done'
+  }
+  const assistantTurn: FollowupMessage = {
+    id: `a-${Date.now()}-${seq}`,
+    role: 'assistant',
+    content: '',
+    created_at: new Date().toISOString(),
+    model: reading.value.model,
+    status: 'streaming'
+  }
+  followups.value.push(userTurn, assistantTurn)
+  followupInput.value = ''
+  scrollFollowupThread()
+
+  try {
+    await streamFollowup(
+      current,
+      message,
+      history,
+      (ev: InterpretEvent) => {
+        if (seq !== followupSeq) return
+        const turn = followups.value.find((item) => item.id === assistantTurn.id)
+        if (!turn) return
+        if (ev.event === 'meta') {
+          turn.model = ev.data.model || turn.model
+          turn.status = 'streaming'
+        } else if (ev.event === 'delta') {
+          turn.content += ev.data.text
+          turn.status = 'streaming'
+        } else if (ev.event === 'done') {
+          turn.status = 'done'
+        } else if (ev.event === 'error') {
+          turn.status = 'error'
+          turn.error = ev.data.message || '追问服务暂时不可用'
+          followupError.value = turn.error
+        }
+      },
+      ctrl.signal
+    )
+    if (seq !== followupSeq) return
+    const turn = followups.value.find((item) => item.id === assistantTurn.id)
+    if (turn && turn.status === 'streaming') turn.status = 'done'
+    saveFollowups()
+  } catch (e) {
+    if (ctrl.signal.aborted || seq !== followupSeq) return
+    const turn = followups.value.find((item) => item.id === assistantTurn.id)
+    const messageText = e instanceof Error ? e.message : '追问失败'
+    if (turn) {
+      turn.status = 'error'
+      turn.error = messageText
+    }
+    followupError.value = messageText
+    saveFollowups()
+  } finally {
+    if (followupAbort === ctrl) followupAbort = null
+    if (seq === followupSeq) followupBusy.value = false
+  }
 }
 
 function scrollToBoard() {
@@ -1019,6 +1231,62 @@ function formatTime(iso: string): string {
         </template>
         <template v-else>解读生成中；盘面事实以引擎计算为准。</template>
       </p>
+    </section>
+
+    <section v-if="chart" class="followup-panel">
+      <header class="followup-head">
+        <span class="seal">问</span>
+        <h2>同盘追问</h2>
+        <em v-if="followupReady">沿这张盘继续，不另起卦</em>
+        <em v-else>{{ followupLockedText }}</em>
+      </header>
+
+      <template v-if="followupReady">
+        <div v-if="followups.length" ref="followupThreadEl" class="followup-thread">
+          <article
+            v-for="turn in followups"
+            :key="turn.id"
+            class="followup-turn"
+            :class="[`is-${turn.role}`, { 'is-error': turn.status === 'error' }]"
+          >
+            <header>
+              <strong>{{ turn.role === 'user' ? '你问' : turn.model || '命云' }}</strong>
+              <time>{{ formatTime(turn.created_at) }}</time>
+            </header>
+            <p v-if="turn.content" class="followup-text">{{ turn.content }}</p>
+            <p v-else-if="turn.status === 'streaming'" class="followup-placeholder">
+              正在沿着这张盘回答…
+            </p>
+            <p v-if="turn.error" class="followup-turn-error">{{ turn.error }}</p>
+          </article>
+        </div>
+        <p v-else class="followup-empty">
+          首轮四段已经在上面。可以接着问应期为什么落在那个节点、某条断语对应哪一爻，或问清一个具体细节。
+        </p>
+
+        <div class="followup-compose">
+          <textarea
+            v-model="followupInput"
+            rows="2"
+            maxlength="200"
+            :disabled="followupBusy"
+            placeholder="接着问这张盘，例如：应期为什么会拖到出空之后？"
+            @keydown="onFollowupKeydown"
+          ></textarea>
+          <div class="followup-compose-foot">
+            <em>已追问 {{ followupUsed }} / {{ MAX_FOLLOWUPS }} 轮 · 同一张盘</em>
+            <button
+              type="button"
+              class="followup-send"
+              :disabled="followupBusy || !followupInput.trim()"
+              @click="sendFollowup"
+            >
+              {{ followupBusy ? '回答中…' : '追问' }}
+            </button>
+          </div>
+        </div>
+        <p v-if="followupError" class="followup-error-line">{{ followupError }}</p>
+      </template>
     </section>
 
     <section

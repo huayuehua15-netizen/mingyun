@@ -121,6 +121,10 @@ function parseReading(text: string): ReadingSections {
 
 const lines = computed(() => [...props.entry.chart.payload.lines].sort((a, b) => b.position - a.position))
 const reading = computed(() => parseReading(props.entry.reading))
+const followupTurns = computed(() => props.entry.followups ?? [])
+const followupRounds = computed(
+  () => followupTurns.value.filter((turn) => turn.role === 'user').length
+)
 </script>
 
 <template>
@@ -244,6 +248,28 @@ const reading = computed(() => parseReading(props.entry.reading))
       </div>
       <div v-else class="archive-reading-empty">
         <p>起卦时已自动留档，但当时没有生成解读。翻回原盘后可以补一次解读。</p>
+      </div>
+    </div>
+
+    <div v-if="followupTurns.length" class="archive-detail-followups">
+      <header class="archive-detail-reading-head">
+        <h3>同盘追问</h3>
+        <em>{{ followupRounds }} 轮 · 同一张盘</em>
+      </header>
+      <div class="archive-followup-list">
+        <article
+          v-for="turn in followupTurns"
+          :key="turn.id"
+          class="archive-followup-turn"
+          :class="[`is-${turn.role}`, { 'is-error': turn.status === 'error' }]"
+        >
+          <header>
+            <strong>{{ turn.role === 'user' ? '你问' : turn.model || '命云' }}</strong>
+            <time>{{ formatFullTime(turn.created_at) }}</time>
+          </header>
+          <p v-if="turn.content">{{ turn.content }}</p>
+          <em v-if="turn.error" class="archive-followup-error">{{ turn.error }}</em>
+        </article>
       </div>
     </div>
   </section>

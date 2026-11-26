@@ -14,7 +14,7 @@ import (
 // 把六亲或世应安错爻位。校验不通过时，调用方不应把正文发给用户。
 func AuditReading(text string, chart schema.Chart) []string {
 	text = strings.ReplaceAll(text, "\r\n", "\n")
-	if !strings.Contains(text, "## 盘面要点") && strings.TrimSpace(text) == "" {
+	if strings.TrimSpace(text) == "" {
 		return []string{"输出为空"}
 	}
 
@@ -36,6 +36,31 @@ func AuditReading(text string, chart schema.Chart) []string {
 			continue
 		}
 		cursor += idx + len(heading)
+	}
+
+	issues = append(issues, auditContent(text, chart, true)...)
+	return issues
+}
+
+// AuditFollowup 追问不要求四段标题，但仍逐项检查盘面事实、绝对化措辞和
+// 用神/世应/六亲是否被写错。
+func AuditFollowup(text string, chart schema.Chart) []string {
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	if strings.TrimSpace(text) == "" {
+		return []string{"输出为空"}
+	}
+	return auditContent(text, chart, false)
+}
+
+func auditContent(text string, chart schema.Chart, requireSurname bool) []string {
+	var issues []string
+	seen := make(map[string]bool)
+	add := func(format string, args ...any) {
+		msg := fmt.Sprintf(format, args...)
+		if !seen[msg] {
+			seen[msg] = true
+			issues = append(issues, msg)
+		}
 	}
 
 	factsText := factsBlob(chart.Facts)
@@ -71,7 +96,7 @@ func AuditReading(text string, chart schema.Chart) []string {
 	checkLineLiuQin(text, lines, add)
 	checkShiYing(text, factsText, add)
 	checkUseShen(text, chart.Facts, add)
-	checkSurnameAnswer(text, chart.Facts, add)
+	checkSurnameAnswer(text, chart.Facts, requireSurname, add)
 	checkShenSha(text, factsText, add)
 
 	return issues
@@ -358,7 +383,7 @@ var zodiacAnimals = map[string]bool{
 	"马": true, "羊": true, "猴": true, "鸡": true, "狗": true, "猪": true,
 }
 
-func checkSurnameAnswer(text string, facts []schema.Fact, add func(string, ...any)) {
+func checkSurnameAnswer(text string, facts []schema.Fact, requireAnswer bool, add func(string, ...any)) {
 	allowed, ok := surnameCandidates(facts)
 	if !ok {
 		return
@@ -382,7 +407,7 @@ func checkSurnameAnswer(text string, facts []schema.Fact, add func(string, ...an
 			add("把生肖动物直接当姓氏：%s", name)
 		}
 	}
-	if !hasAllowed {
+	if !hasAllowed && requireAnswer {
 		add("测姓类解读没有给出真实姓氏候选")
 	}
 }

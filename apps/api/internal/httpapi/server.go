@@ -50,6 +50,7 @@ func New(version string, st store.ChartStore, es *entropy.Source, aiClients ...*
 	mux.HandleFunc("GET /api/v1/charts", s.handleListCharts)
 	mux.HandleFunc("GET /api/v1/charts/{id}", s.handleGetChart)
 	mux.HandleFunc("POST /api/v1/charts/{id}/interpret", s.handleInterpret)
+	mux.HandleFunc("POST /api/v1/charts/{id}/messages", s.handleFollowup)
 	mux.HandleFunc("/", s.handleNotFound)
 
 	return withRequestID(mux)

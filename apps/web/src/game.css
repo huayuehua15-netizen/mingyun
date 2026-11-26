@@ -1389,6 +1389,10 @@
   color: var(--grey);
 }
 
+.archive-main em.archive-followup-count {
+  color: var(--cinnabar);
+}
+
 .archive-meta span {
   color: var(--grey);
 }
@@ -2440,5 +2444,307 @@
   .route-node,
   .route-card {
     animation: none;
+  }
+}
+
+/* ---------- 同盘追问 ---------- */
+
+.followup-panel {
+  margin-top: 18px;
+  padding: 0 36px 24px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.followup-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 22px 0 14px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.followup-head h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.14em;
+}
+
+.followup-head em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--grey);
+  text-align: right;
+}
+
+.followup-thread {
+  padding: 4px 0 0;
+}
+
+.followup-turn {
+  padding: 15px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.followup-turn header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.followup-turn header strong {
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  color: var(--ink-2);
+}
+
+.followup-turn header time {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--grey);
+}
+
+.followup-turn.is-user {
+  padding-left: 12px;
+  border-left: 2px solid var(--cinnabar);
+}
+
+.followup-turn.is-user header strong {
+  color: var(--cinnabar);
+}
+
+.followup-text {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.95;
+  color: var(--ink-2);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.followup-turn.is-user .followup-text {
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.followup-placeholder {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--grey);
+}
+
+.followup-turn-error {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--cinnabar);
+}
+
+.followup-empty {
+  margin: 0;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.9;
+  color: var(--grey);
+}
+
+.followup-compose {
+  padding-top: 16px;
+}
+
+.followup-compose textarea {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  outline: 0;
+  background: var(--paper-2);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--ink);
+  resize: vertical;
+}
+
+.followup-compose textarea::placeholder {
+  color: var(--grey);
+}
+
+.followup-compose textarea:focus {
+  border-color: var(--ink);
+}
+
+.followup-compose textarea:disabled {
+  color: var(--grey);
+  cursor: wait;
+}
+
+.followup-compose-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.followup-compose-foot em {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--grey);
+}
+
+.followup-send {
+  flex: none;
+  padding: 7px 20px;
+  border: 1px solid var(--cinnabar);
+  border-radius: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--cinnabar);
+  cursor: pointer;
+  transition: background 140ms ease-out, color 140ms ease-out;
+}
+
+.followup-send:hover:not(:disabled) {
+  background: var(--cinnabar);
+  color: var(--paper-2);
+}
+
+.followup-send:disabled {
+  border-color: var(--line);
+  color: var(--grey);
+  cursor: not-allowed;
+}
+
+.followup-error-line {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--cinnabar);
+}
+
+.followup-locked {
+  margin: 0;
+  padding: 18px 0 2px;
+  font-size: 11px;
+  line-height: 1.9;
+  color: var(--grey);
+}
+
+/* 卦历详情：追问记录 */
+
+.archive-detail-followups {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.archive-detail-followups .archive-detail-reading-head {
+  padding-top: 18px;
+}
+
+.archive-followup-list {
+  padding-top: 2px;
+}
+
+.archive-followup-turn {
+  padding: 12px 0 13px;
+  border-top: 1px solid var(--line);
+}
+
+.archive-followup-turn header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.archive-followup-turn header strong {
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: var(--ink-2);
+}
+
+.archive-followup-turn header time {
+  font-size: 9px;
+  color: var(--grey);
+}
+
+.archive-followup-turn.is-user {
+  padding-left: 11px;
+  border-left: 2px solid var(--cinnabar);
+}
+
+.archive-followup-turn.is-user header strong {
+  color: var(--cinnabar);
+}
+
+.archive-followup-turn p {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--ink-2);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.archive-followup-turn.is-user p {
+  color: var(--ink);
+}
+
+.archive-followup-error {
+  display: block;
+  margin-top: 8px;
+  font-style: normal;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--cinnabar);
+}
+
+@media (max-width: 760px) {
+  .followup-panel {
+    padding: 0 18px 18px;
+  }
+
+  .followup-head {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .followup-head em {
+    flex-basis: 100%;
+    margin-left: 38px;
+    text-align: left;
+  }
+
+  .followup-turn.is-user {
+    padding-left: 9px;
+  }
+
+  .followup-compose-foot {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .followup-compose-foot em {
+    align-self: flex-start;
+  }
+
+  .followup-send {
+    width: 100%;
   }
 }

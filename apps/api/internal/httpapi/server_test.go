@@ -205,6 +205,32 @@ func TestCastManual(t *testing.T) {
 	}
 }
 
+func TestFollowupRouteRequiresAI(t *testing.T) {
+	ts := newTestEnv(t)
+	body := `{"mode":"manual","question":"同盘追问接口","at":"2026-11-25T14:30:00+08:00","lines":["少阳","少阳","少阳","少阳","少阳","少阳"]}`
+	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/liuyao/cast", body, http.StatusOK)
+	if env.Code != 0 {
+		t.Fatalf("code = %d, message = %s", env.Code, env.Message)
+	}
+	var view chartView
+	if err := json.Unmarshal(env.Data, &view); err != nil {
+		t.Fatal(err)
+	}
+	followup := doRequest(t, ts, http.MethodPost, "/api/v1/charts/"+view.ChartID+"/messages", `{"message":"应期为什么这么看？"}`, http.StatusServiceUnavailable)
+	if followup.Code != 30003 {
+		t.Errorf("无模型追问 code = %d，期望 30003", followup.Code)
+	}
+	if followup.Message == "" {
+		t.Error("无模型追问应给出可展示的错误消息")
+	}
+
+	// 服务端内存里没有这张盘，且没有本地快照时，应明确 404，而不是空流。
+	missing := doRequest(t, ts, http.MethodPost, "/api/v1/charts/not-a-chart/messages", `{"message":"还在吗？"}`, http.StatusNotFound)
+	if missing.Code != 10301 {
+		t.Errorf("缺盘追问 code = %d，期望 10301", missing.Code)
+	}
+}
+
 func TestCastSurnameTopic(t *testing.T) {
 	ts := newTestEnv(t)
 	body := `{"mode":"manual","question":"测一下我的姓氏，提示在生肖中","at":"2026-11-26T21:55:00+08:00","lines":["少阳","少阴","少阳","少阴","少阴","少阴"]}`

@@ -78,24 +78,24 @@ export type InterpretEvent =
  * EventSource 不支持 POST，这里用 fetch + ReadableStream 手工解析
  * `event:` / `data:` 帧。服务端约定 meta / delta / usage / done / error。
  */
-export async function streamInterpret(
-  chartId: string,
-  question: string,
+async function streamSSE(
+  path: string,
+  payload: unknown,
   onEvent: (ev: InterpretEvent) => void,
   signal?: AbortSignal
 ): Promise<void> {
-  const res = await fetch(`/api/v1/charts/${encodeURIComponent(chartId)}/interpret`, {
+  const res = await fetch(path, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream'
     },
-    body: JSON.stringify({ question, style: 'plain' }),
+    body: JSON.stringify(payload),
     signal
   })
 
   if (!res.ok) {
-    let message = `解读请求失败（HTTP ${res.status}）`
+    let message = `请求失败（HTTP ${res.status}）`
     try {
       const body = (await res.json()) as Envelope<unknown>
       if (body?.message) message = body.message
@@ -162,4 +162,42 @@ export async function streamInterpret(
   } finally {
     reader.releaseLock()
   }
+}
+
+export function streamInterpret(
+  chartId: string,
+  question: string,
+  onEvent: (ev: InterpretEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  return streamSSE(
+    `/api/v1/charts/${encodeURIComponent(chartId)}/interpret`,
+    { question, style: 'plain' },
+    onEvent,
+    signal
+  )
+}
+
+export interface FollowupHistoryTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/**
+ * 同一张盘内的追问。请求体额外携带本地 chart 快照：API 重启后旧盘不在
+ * 服务端内存时，仍能按原盘事实回答，而不是凭空重起一卦。
+ */
+export function streamFollowup(
+  chart: ChartView,
+  message: string,
+  history: FollowupHistoryTurn[],
+  onEvent: (ev: InterpretEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  return streamSSE(
+    `/api/v1/charts/${encodeURIComponent(chart.chart_id)}/messages`,
+    { message, history, style: 'plain', chart },
+    onEvent,
+    signal
+  )
 }

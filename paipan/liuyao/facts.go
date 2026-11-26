@@ -136,6 +136,12 @@ func buildFacts(p Payload) []schema.Fact {
 	return facts
 }
 
+// BuildFacts 是 buildFacts 的导出入口，供 API 在只拿到本地盘面快照、
+// 服务端内存已丢失时重建完整事实清单。
+func BuildFacts(p Payload) []schema.Fact {
+	return buildFacts(p)
+}
+
 func findLine(lines []LinePayload, pos int) *LinePayload {
 	for i := range lines {
 		if lines[i].Position == pos {

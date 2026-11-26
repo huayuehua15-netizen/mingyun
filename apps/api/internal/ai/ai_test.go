@@ -75,6 +75,34 @@ func TestBuildMessagesKeepsFactsAndEscapesQuestion(t *testing.T) {
 	}
 }
 
+func TestBuildFollowupMessagesUsesSameChartAndHistory(t *testing.T) {
+	chart := schema.Chart{
+		Method:   schema.MethodLiuYao,
+		Question: "这次考试能否通过",
+		Facts: []schema.Fact{
+			{Key: "liuyao.gua", Label: "本卦", Value: "泽火革（坎宫·六世）", Weight: schema.WeightCore},
+		},
+	}
+	history := []DialogueTurn{
+		{Role: "assistant", Content: "首轮：初爻子孙发动。"},
+		{Role: "user", Content: "应期为什么在出空之后？"},
+		{Role: "assistant", Content: "因为旬空未填实。"},
+	}
+	msgs := BuildFollowupMessages(chart, history, "那出空之后先看哪一爻？", "plain")
+	if len(msgs) != 6 {
+		t.Fatalf("消息结构不符: %+v", msgs)
+	}
+	if !strings.Contains(msgs[0].Content, "同一张盘内的追问") || strings.Contains(msgs[0].Content, "输出格式必须严格为以下四段") {
+		t.Fatal("追问 system 提示词不应要求四段格式")
+	}
+	if !strings.Contains(msgs[1].Content, "本卦：泽火革") || !strings.Contains(msgs[1].Content, "这次考试能否通过") {
+		t.Fatal("追问背景应包含同一张盘的事实与首轮问题")
+	}
+	if msgs[len(msgs)-1].Role != "user" || !strings.Contains(msgs[len(msgs)-1].Content, "那出空之后先看哪一爻？") {
+		t.Fatal("当前追问应放在最后一条 user 消息")
+	}
+}
+
 func TestBuildOfflineReadingHasFourSections(t *testing.T) {
 	chart := schema.Chart{
 		Method: schema.MethodLiuYao,

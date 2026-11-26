@@ -23,6 +23,34 @@ func auditFixture() schema.Chart {
 	}
 }
 
+func TestAuditFollowupAcceptsNoHeadings(t *testing.T) {
+	text := `应期先看寅、卯出空，再看初爻子孙与三爻父母的动变是否落地。因为初爻子孙发动，所以这件事不是完全没有推动；但世爻在四爻，仍要看自身能否承接。本月内可先观察，不把日期说死。`
+	if issues := AuditFollowup(text, auditFixture()); len(issues) > 0 {
+		t.Fatalf("不带四段标题的合规追问不应被拦截: %v", issues)
+	}
+}
+
+func TestAuditFollowupStillChecksFacts(t *testing.T) {
+	text := `因为四爻发动，所以事情会马上变化。`
+	if issues := AuditFollowup(text, auditFixture()); len(issues) == 0 {
+		t.Fatal("追问把静爻说成动爻时应被拦截")
+	}
+}
+
+func TestAuditFollowupAllowsSurnameTopicWithoutRepeatingSurname(t *testing.T) {
+	chart := auditFixture()
+	chart.Facts = append(chart.Facts, schema.Fact{
+		Key:    "liuyao.surname",
+		Label:  "姓氏候选",
+		Value:  "常见姓氏候选：李、王、张、刘；兔对应卯，候选姓氏：柳",
+		Weight: schema.WeightCore,
+	})
+	text := `应期先看寅、卯出空，再看初爻子孙的动变。这张盘只能说明姓氏取象的一个方向，不适合直接断死。`
+	if issues := AuditFollowup(text, chart); len(issues) > 0 {
+		t.Fatalf("追问没有重新断姓时，不应强制重复姓氏候选: %v", issues)
+	}
+}
+
 func TestAuditReadingAcceptsGroundedReading(t *testing.T) {
 	text := `## 盘面要点
 本卦泽火革，变卦泽雷随。世在四爻，应在初爻；月建己亥、日辰甲辰，旬空寅、卯。初爻子孙发动，三爻父母发动。

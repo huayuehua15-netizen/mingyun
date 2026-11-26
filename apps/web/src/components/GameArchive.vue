@@ -105,7 +105,8 @@ const filteredEntries = computed(() => {
       entry.changed_gua,
       entry.topic_label,
       entry.model,
-      entry.reading
+      entry.reading,
+      ...(entry.followups ?? []).map((turn) => turn.content)
     ]
       .join(' ')
       .toLowerCase()
@@ -203,6 +204,12 @@ function requestClear() {
                 </h2>
                 <p>{{ entry.question || '未记所问之事' }}</p>
                 <em v-if="entry.topic_label">{{ entry.topic_label }}</em>
+                <em
+                  v-if="entry.followups?.some((turn) => turn.role === 'user')"
+                  class="archive-followup-count"
+                >
+                  含 {{ entry.followups.filter((turn) => turn.role === 'user').length }} 轮追问
+                </em>
               </div>
               <div class="archive-meta">
                 <span :class="statusClass(entry)">{{ statusLabel(entry) }}</span>

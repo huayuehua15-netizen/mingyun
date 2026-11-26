@@ -8,16 +8,16 @@
 
 ## 当前状态
 
-当前可用的是**六爻**一条完整链路：铜钱摇卦（一爻一摇）或手动录入 → Go 复算排盘 → 盘面 facts → AI 四段流式解读 / 离线摘要。大六壬、紫微斗数已在数据契约与路线图中预留，引擎尚未实现。
+当前可用的是**六爻**一条完整链路：铜钱摇卦（一爻一摇）或手动录入 → Go 复算排盘 → 盘面 facts → AI 四段流式解读 / 离线摘要；首轮解读完成后，可以沿同一张盘继续追问，不重新起卦。大六壬、紫微斗数已在数据契约与路线图中预留，引擎尚未实现。
 
 | 模块 | 状态 |
 |---|---|
 | `paipan/calendar` 历法层（干支、节气、月将、旬空、真太阳时、子初换日） | ✅ |
 | `paipan/liuyao` 六爻（八宫、纳甲、六亲、六神、世应、伏神、旺衰、动变、通用取用神） | ✅ v0.2.0 |
 | `apps/api` 单二进制（`serve` / `calendar` / `paipan`） | ✅ |
-| HTTP API：排盘、盘面详情、列表、历法、能力清单、SSE 解读 | ✅ |
-| `apps/web` 游戏化四场景（山门 / 案上起卦 / 卦历 / 三术）、三卷行卷、逐爻生长、起卦自动留档、完整盘面与解读详情、SSE 解读 | ✅ |
-| AI 解读（OpenAI 兼容 SSE、四段输出、离线兜底） | ✅ |
+| HTTP API：排盘、盘面详情、列表、历法、能力清单、SSE 解读与同盘追问 | ✅ |
+| `apps/web` 游戏化四场景（山门 / 案上起卦 / 卦历 / 三术）、三卷行卷、逐爻生长、起卦自动留档、完整盘面与解读详情、同盘追问、SSE 解读 | ✅ |
+| AI 解读（OpenAI 兼容 SSE、四段输出、同一张盘内追问、离线兜底） | ✅ |
 | Docker Compose（API + Nginx 静态站） | ✅ |
 | `paipan/daliuren` 大六壬 / `paipan/ziwei` 紫微斗数 | ⏳ |
 | PostgreSQL / Redis 持久化、账号与额度 | ⏳ |
@@ -43,6 +43,11 @@
 卦历：每次起卦自动留档（含未解读/失败的起卦），保存完整盘面、用神、关键事实与当时解读；支持搜索、按状态筛选、展开详情、翻回原盘、导出 JSON、删除与清空。只存在浏览器 localStorage，最多 100 则，不上传服务端：
 
 <img src="docs/preview/archive-history.png" width="760" alt="卦历列表与详情">
+
+同盘追问：首轮四段完成后，在盘面下方沿同一张盘继续问，不重新起卦。追问沿用原盘 facts 与已发生对话，仍做盘面事实硬校验；最多 6 轮，换问题会提示另起一卦。追问记录写入同一条卦历：
+
+<img src="docs/preview/followup.png" width="760" alt="同盘追问">
+<img src="docs/preview/followup-history.png" width="760" alt="卦历中的追问记录">
 
 三术：六爻已开放，大六壬、紫微斗数按卷推进：
 
@@ -169,6 +174,8 @@ Token Plan 的 `kimi-k3` / `glm-5.3` 在当前免费额度下容易触发 TPM/RP
 4. `POST /api/v1/charts/{id}/interpret` 用 SSE 返回 `meta / delta / usage / done / error`；前端用 `fetch` + `ReadableStream` 解析，逐字渲染。
 5. 在线模型先完整生成，再由 `AuditReading` 做盘面事实校验：四段标题、绝对化承诺、事实之外的卦名/干支/神煞、静爻说成动爻、六亲和世应安错爻位、用神与规则不一致，任一项不过就整段拦截，不把编造内容流到浏览器。校验通过后才分片下发。
 6. 没有模型时，同一路由返回离线摘要：四段结构保留，但明确不判吉凶、不推应期。
+7. 追问走 `POST /api/v1/charts/{id}/messages`：不吃首轮四段格式，提示词改为“同一张盘内的追问”，仍注入完整 facts、首轮问题与最近对话；`AuditFollowup` 继续拦住编造的卦名/干支/六亲/世应/动爻。最多 6 轮；若换了问题或对象，提示另起一卦。
+8. 前端把追问写入 `ArchiveEntry.followups`，刷新后仍在卦历详情里；若 API 重启导致服务端内存丢盘，前端请求会带本地 `chart` 快照，服务端从 payload 重建 facts 后再回答。
 
 ```
 curl -N -X POST "localhost:8080/api/v1/charts/{chart_id}/interpret" \
@@ -188,6 +195,7 @@ curl -N -X POST "localhost:8080/api/v1/charts/{chart_id}/interpret" \
 | GET | `/api/v1/meta/capabilities` | 术数能力清单 |
 | GET | `/api/v1/meta/calendar` | 历法上下文 |
 | POST | `/api/v1/charts/{id}/interpret` | SSE 首轮解读 |
+| POST | `/api/v1/charts/{id}/messages` | SSE 同盘追问：`message` + 最近 `history`；服务端内存无此盘时可带本地 `chart` 快照重建 facts |
 
 排一张盘：
 
