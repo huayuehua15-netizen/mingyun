@@ -142,7 +142,7 @@ function enterMethod(open: boolean) {
             <div><dt>真太阳时</dt><dd>{{ calendar?.true_solar_used ? '已校正' : '未校正' }}</dd></div>
           </dl>
           <button class="quest-link" @click="$emit('archive')">
-            <span>翻看卦例</span>
+            <span>起卦历史</span>
             <b>{{ archiveCount }}</b>
             <i>→</i>
           </button>
@@ -154,7 +154,7 @@ function enterMethod(open: boolean) {
             最近一卦：<b>{{ lastEntry.gua_name }}</b><br />
             {{ lastEntry.question || '未记所问' }}
           </p>
-          <p v-else>每成一卦，会自动收入「卦例」，只存在这台机器上。</p>
+          <p v-else>每成一卦，会自动收入「卦历」，只存在这台机器上。</p>
         </div>
       </aside>
     </div>
@@ -209,7 +209,7 @@ function enterMethod(open: boolean) {
       </div>
 
       <div class="route-foot">
-        <button class="text-btn" @click="$emit('archive')">翻看卦例 {{ archiveCount }}</button>
+        <button class="text-btn" @click="$emit('archive')">查看历史记录 {{ archiveCount }}</button>
         <button class="text-btn" @click="$emit('codex')">展开三术</button>
       </div>
     </section>

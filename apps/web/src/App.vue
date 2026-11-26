@@ -22,7 +22,7 @@ function resolveInitialView(): ViewName {
 const view = ref<ViewName>(resolveInitialView())
 const archive = ref<ArchiveEntry[]>([])
 const ARCHIVE_KEY = 'mingyun.archive.v1'
-const ARCHIVE_LIMIT = 20
+const ARCHIVE_LIMIT = 100
 
 const question = ref('')
 const mode = ref<'coin' | 'manual'>('coin')
@@ -206,6 +206,42 @@ function navigate(next: ViewName) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+function normalizeArchiveEntry(item: unknown): ArchiveEntry | null {
+  if (!item || typeof item !== 'object') return null
+  const raw = item as Partial<ArchiveEntry>
+  if (!raw.chart_id || !raw.chart || !raw.chart.payload) return null
+
+  const chart = raw.chart
+  const reading = typeof raw.reading === 'string' ? raw.reading : ''
+  const mode = raw.mode === 'ai' || raw.mode === 'offline' ? raw.mode : ''
+  const savedAt = raw.saved_at || chart.created_at || new Date().toISOString()
+  const status =
+    raw.status === 'pending' || raw.status === 'reading' || raw.status === 'done' || raw.status === 'error'
+      ? raw.status
+      : reading
+        ? 'done'
+        : raw.reading_error
+          ? 'error'
+          : 'pending'
+
+  return {
+    chart_id: raw.chart_id,
+    question: raw.question || chart.question || '',
+    gua_name: raw.gua_name || chart.payload.gua_name,
+    changed_gua: raw.changed_gua || chart.payload.changed_gua,
+    saved_at: savedAt,
+    cast_at: raw.cast_at || chart.created_at || savedAt,
+    read_at: raw.read_at || (reading ? savedAt : undefined),
+    status,
+    topic_label: raw.topic_label || chart.payload.use_shen?.topic_label,
+    mode,
+    model: raw.model || '',
+    reading,
+    reading_error: raw.reading_error,
+    chart
+  }
+}
+
 function loadArchive() {
   try {
     const raw = window.localStorage.getItem(ARCHIVE_KEY)
@@ -213,7 +249,8 @@ function loadArchive() {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return
     archive.value = parsed
-      .filter((item): item is ArchiveEntry => !!item && !!item.chart_id && !!item.chart)
+      .map((item) => normalizeArchiveEntry(item))
+      .filter((item): item is ArchiveEntry => !!item)
       .slice(0, ARCHIVE_LIMIT)
   } catch {
     // 本地存档损坏时静默丢弃，不影响起卦。
@@ -228,26 +265,92 @@ function persistArchive() {
   }
 }
 
+function upsertArchiveEntry(
+  chartData: ChartView,
+  patch: Partial<Pick<ArchiveEntry, 'question' | 'status' | 'mode' | 'model' | 'reading' | 'reading_error' | 'read_at'>>
+): ArchiveEntry {
+  const existing = archive.value.find((item) => item.chart_id === chartData.chart_id)
+  const now = new Date().toISOString()
+  const entry: ArchiveEntry = {
+    chart_id: chartData.chart_id,
+    question: patch.question ?? chartData.question ?? question.value.trim(),
+    gua_name: chartData.payload.gua_name,
+    changed_gua: chartData.payload.changed_gua,
+    saved_at: existing?.saved_at || now,
+    cast_at: existing?.cast_at || chartData.created_at || now,
+    read_at: patch.read_at ?? existing?.read_at,
+    status: patch.status ?? existing?.status ?? 'pending',
+    topic_label: chartData.payload.use_shen?.topic_label || existing?.topic_label,
+    mode: patch.mode ?? existing?.mode ?? '',
+    model: patch.model ?? existing?.model ?? '',
+    reading: patch.reading ?? existing?.reading ?? '',
+    reading_error: patch.reading_error ?? existing?.reading_error,
+    chart: chartData
+  }
+  archive.value = [entry, ...archive.value.filter((item) => item.chart_id !== entry.chart_id)].slice(
+    0,
+    ARCHIVE_LIMIT
+  )
+  persistArchive()
+  return entry
+}
+
+function recordCurrentChart(chartData: ChartView) {
+  const existing = archive.value.find((item) => item.chart_id === chartData.chart_id)
+  if (existing) return
+  upsertArchiveEntry(chartData, {
+    status: 'pending',
+    mode: '',
+    model: '',
+    reading: '',
+    reading_error: ''
+  })
+}
+
 function saveCurrentReading() {
   const current = chart.value
   const text = reading.value.text.trim()
   if (!current || !text) return
-
-  const entry: ArchiveEntry = {
-    chart_id: current.chart_id,
-    question: current.question || question.value.trim(),
-    gua_name: current.payload.gua_name,
-    changed_gua: current.payload.changed_gua,
-    saved_at: new Date().toISOString(),
+  upsertArchiveEntry(current, {
+    status: 'done',
     mode: reading.value.mode,
     model: reading.value.model,
     reading: text,
-    chart: current
-  }
-  const existing = archive.value.findIndex((item) => item.chart_id === entry.chart_id)
-  if (existing >= 0) archive.value.splice(existing, 1)
-  archive.value = [entry, ...archive.value].slice(0, ARCHIVE_LIMIT)
+    read_at: new Date().toISOString(),
+    reading_error: ''
+  })
+}
+
+function markReadingError() {
+  const current = chart.value
+  if (!current) return
+  upsertArchiveEntry(current, {
+    status: 'error',
+    reading_error: reading.value.error || '解读失败',
+    read_at: new Date().toISOString()
+  })
+}
+
+function deleteArchiveEntry(entry: ArchiveEntry) {
+  archive.value = archive.value.filter((item) => item.chart_id !== entry.chart_id)
   persistArchive()
+}
+
+function clearArchive() {
+  if (!archive.value.length) return
+  archive.value = []
+  persistArchive()
+}
+
+function exportArchive() {
+  if (!archive.value.length) return
+  const blob = new Blob([JSON.stringify(archive.value, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `mingyun-history-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function openArchive(entry: ArchiveEntry) {
@@ -259,12 +362,12 @@ function openArchive(entry: ArchiveEntry) {
   question.value = entry.question || entry.chart.question || ''
   if (entry.chart.calendar) calendar.value = entry.chart.calendar
   reading.value = {
-    status: 'done',
+    status: entry.status === 'error' ? 'error' : entry.reading ? 'done' : 'idle',
     mode: entry.mode,
     model: entry.model,
     provider: '',
     text: entry.reading,
-    error: ''
+    error: entry.reading_error || ''
   }
   view.value = 'cast'
   window.history.replaceState(null, '', '#/cast')
@@ -432,11 +535,14 @@ async function startReading() {
     }
     if (seq === readingSeq && reading.value.status === 'done') {
       saveCurrentReading()
+    } else if (seq === readingSeq && reading.value.status === 'error') {
+      markReadingError()
     }
   } catch (e) {
     if (ctrl.signal.aborted || seq !== readingSeq) return
     reading.value.status = 'error'
     reading.value.error = e instanceof Error ? e.message : '解读失败'
+    markReadingError()
   } finally {
     if (readingAbort === ctrl) readingAbort = null
   }
@@ -516,6 +622,7 @@ async function submitCoinChart() {
     })
     chart.value = data
     if (data.calendar) calendar.value = data.calendar
+    recordCurrentChart(data)
     await nextTick()
     window.setTimeout(scrollToBoard, 260)
     void startReading()
@@ -538,6 +645,7 @@ async function submitManual() {
     })
     chart.value = data
     if (data.calendar) calendar.value = data.calendar
+    recordCurrentChart(data)
     await nextTick()
     window.setTimeout(scrollToBoard, 200)
     void startReading()
@@ -585,7 +693,7 @@ function formatTime(iso: string): string {
         <span>MINGYUN</span>
       </button>
       <div class="game-hud">
-        <span class="hud-cell"><em>卦例</em><b>{{ archive.length }}</b></span>
+        <span class="hud-cell"><em>历史</em><b>{{ archive.length }}</b></span>
         <span v-if="calendar" class="hud-cell"><em>日</em><b>{{ calendar.day_gz }}</b></span>
         <span class="hud-cell hud-cell--quiet"><em>三术</em><b>六爻</b></span>
         <a href="https://github.com/huayuehua15-netizen/mingyun" target="_blank" rel="noopener">GitHub ↗</a>
@@ -916,7 +1024,7 @@ function formatTime(iso: string): string {
     <section
       v-if="currentArchiveEntry"
       class="case-seal-panel"
-      aria-label="卦例已收录"
+      aria-label="历史记录已收录"
     >
       <div class="case-seal-stamp">
         <b>录</b>
@@ -924,15 +1032,15 @@ function formatTime(iso: string): string {
       </div>
       <div class="case-seal-copy">
         <span class="case-seal-kicker">卷一 · 六爻</span>
-        <strong>此卦已收入卦例</strong>
+        <strong>此卦已收入卦历</strong>
         <p>
           {{ chart?.payload.gua_name }} · {{ formatTime(currentArchiveEntry.saved_at) }} ·
-          第 {{ currentCaseOrdinal }} 例
+          第 {{ currentCaseOrdinal }} 则
         </p>
       </div>
       <div class="case-seal-actions">
         <button class="seal-btn seal-btn--small" @click="startAnother">再问一事</button>
-        <button class="text-btn" @click="navigate('archive')">翻看卦例</button>
+        <button class="text-btn" @click="navigate('archive')">翻看历史</button>
       </div>
     </section>
         </div>
@@ -945,6 +1053,9 @@ function formatTime(iso: string): string {
         @open="openArchive"
         @cast="navigate('cast')"
         @home="navigate('home')"
+        @delete="deleteArchiveEntry"
+        @clear="clearArchive"
+        @export="exportArchive"
       />
 
       <GameCodex

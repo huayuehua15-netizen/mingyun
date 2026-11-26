@@ -152,9 +152,11 @@ export interface Envelope<T> {
 
 export type ViewName = 'home' | 'cast' | 'archive' | 'codex'
 
+export type ArchiveStatus = 'pending' | 'reading' | 'done' | 'error'
+
 /**
- * 卦例存档只保存在浏览器本机，不上传服务端。
- * chart 存完整盘面，便于从「卦例」直接翻回原盘。
+ * 卦历记录只保存在浏览器本机，不上传服务端。
+ * chart 存完整盘面，便于从「卦历」直接翻回原盘。
  */
 export interface ArchiveEntry {
   chart_id: string
@@ -162,8 +164,13 @@ export interface ArchiveEntry {
   gua_name: string
   changed_gua?: string
   saved_at: string
+  cast_at?: string
+  read_at?: string
+  status?: ArchiveStatus
+  topic_label?: string
   mode: 'ai' | 'offline' | ''
   model: string
   reading: string
+  reading_error?: string
   chart: ChartView
 }
