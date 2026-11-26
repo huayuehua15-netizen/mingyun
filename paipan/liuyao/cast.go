@@ -10,7 +10,7 @@ import (
 )
 
 // Version 六爻引擎版本。规则变更时升 minor，盘面结构变更时升 major。
-const Version = "liuyao@0.1.0"
+const Version = "liuyao@0.2.0"
 
 // Mode 起卦方式。
 type Mode string
@@ -28,6 +28,8 @@ type Input struct {
 	Lines    []LineKind // ModeManual 时使用，自下而上六爻
 	Backs    [6]int     // ModeCoin 时使用，每爻三枚铜钱的背数（0—3）
 	Question string
+	Topic    string // 可选问事类别；为空时按问题关键词分类
+	Gender   string // 可选求测者性别，感情类用
 }
 
 // LinePayload 一爻的盘面数据。
@@ -87,6 +89,7 @@ type Payload struct {
 	MonthZhi      string          `json:"month_zhi"`
 	DayZhi        string          `json:"day_zhi"`
 	XunKong       [2]string       `json:"xun_kong"`
+	UseShen       *UseShenPlan    `json:"use_shen,omitempty"`
 }
 
 // Cast 排六爻盘。
@@ -211,6 +214,8 @@ func Cast(in Input, cal calendar.Context) (schema.Chart, error) {
 	}
 
 	payload.FuShen = fuShenFor(ben, palaceWu)
+	plan := SelectUseShen(in.Question, in.Topic, in.Gender, payload.Lines, payload.FuShen)
+	payload.UseShen = &plan
 
 	chart := schema.Chart{
 		Method:        schema.MethodLiuYao,

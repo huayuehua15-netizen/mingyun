@@ -18,7 +18,7 @@ func BuildOfflineReading(chart schema.Chart, question string) string {
 
 	b.WriteString("## 盘面要点\n")
 	b.WriteString("引擎已完成排盘，以下只转录盘面事实：\n")
-	for _, label := range []string{"本卦", "变卦", "世应", "月建日辰", "旬空"} {
+	for _, label := range []string{"本卦", "变卦", "世应", "月建日辰", "旬空", "问事类别", "用神"} {
 		if v := factValue(chart.Facts, label); v != "" {
 			fmt.Fprintf(&b, "· %s：%s\n", label, v)
 		}

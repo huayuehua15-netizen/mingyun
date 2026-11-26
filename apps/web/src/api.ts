@@ -26,6 +26,8 @@ export function fetchCalendar(at?: string): Promise<CalendarContext> {
 export interface CastRequest {
   mode: 'coin' | 'manual'
   question?: string
+  topic?: string
+  gender?: string
   at?: string
   lon?: number
   tz?: string

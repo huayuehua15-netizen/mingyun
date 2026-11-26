@@ -117,3 +117,31 @@ func TestAuditReadingAllowsUncertainty(t *testing.T) {
 		t.Fatalf("不确定表述不应被误拦: %v", issues)
 	}
 }
+
+func TestAuditReadingChecksUseShen(t *testing.T) {
+	chart := auditFixture()
+	chart.Facts = append(chart.Facts, schema.Fact{
+		Key:    "liuyao.use_shen",
+		Label:  "用神",
+		Value:  "主用神：妻财；次用神：子孙；忌神：兄弟；取法：求财以妻财为用（规则 YS-01）",
+		Weight: schema.WeightCore,
+	})
+	text := `## 盘面要点
+本卦泽火革，变卦泽雷随。
+
+## 断语
+以官鬼为用神，因为官鬼在三爻，所以压力来自工作。
+
+## 应期与走向
+本月内观察。
+
+## 建议
+先观察。`
+	issues := AuditReading(text, chart)
+	if len(issues) == 0 {
+		t.Fatal("用神与规则不一致，应拦截")
+	}
+	if joined := strings.Join(issues, "；"); !strings.Contains(joined, "妻财") {
+		t.Fatalf("拦截原因应指出规则用神为妻财: %s", joined)
+	}
+}

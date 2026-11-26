@@ -70,6 +70,7 @@ func AuditReading(text string, chart schema.Chart) []string {
 	checkMovingLines(text, lines, add)
 	checkLineLiuQin(text, lines, add)
 	checkShiYing(text, factsText, add)
+	checkUseShen(text, chart.Facts, add)
 	checkShenSha(text, factsText, add)
 
 	return issues
@@ -212,8 +213,10 @@ var (
 	reStaticYao = regexp.MustCompile(`([初二三四五上])爻(?:为静|不动|未动)`)
 	reQinAToYao = regexp.MustCompile(`([初二三四五上])爻(?:为|临|是|持|带|坐)(子孙|妻财|官鬼|父母|兄弟)`)
 	reQinToYaoB = regexp.MustCompile(`(子孙|妻财|官鬼|父母|兄弟)(?:在|临|持|居|落)([初二三四五上])爻`)
-	reShiYao    = regexp.MustCompile(`世(?:爻)?[在是]([初二三四五上])爻`)
-	reYingYao   = regexp.MustCompile(`应(?:爻)?[在是]([初二三四五上])爻`)
+	reShiYao    = regexp.MustCompile(`世(?:爻)?[在是落居]([初二三四五上])爻`)
+	reYingYao   = regexp.MustCompile(`应(?:爻)?[在是落居]([初二三四五上])爻`)
+	reUseShenA  = regexp.MustCompile(`以(子孙|妻财|官鬼|父母|兄弟|世爻)为用神`)
+	reUseShenB  = regexp.MustCompile(`主?用神(?:为|是|取|：|:)\s*(子孙|妻财|官鬼|父母|兄弟|世爻)`)
 )
 
 func checkMovingLines(text string, lines map[int]auditLine, add func(string, ...any)) {
@@ -267,6 +270,58 @@ func checkShiYing(text, factsText string, add func(string, ...any)) {
 					add("应爻应在%s，输出却写在%s", match[1]+"爻", s[1]+"爻")
 				}
 			}
+		}
+	}
+}
+
+func checkUseShen(text string, facts []schema.Fact, add func(string, ...any)) {
+	var value string
+	for _, f := range facts {
+		if f.Label == "用神" {
+			value = f.Value
+			break
+		}
+	}
+	if value == "" || strings.Contains(value, "主用神：待定") || strings.Contains(value, "男占") {
+		return
+	}
+	prefix := value
+	if idx := strings.Index(prefix, "；"); idx >= 0 {
+		prefix = prefix[:idx]
+	}
+	prefix = strings.TrimPrefix(prefix, "主用神：")
+	allowed := make(map[string]bool)
+	for _, name := range strings.Split(prefix, "、") {
+		allowed[strings.TrimSpace(name)] = true
+	}
+	if len(allowed) == 0 {
+		return
+	}
+
+	var claims []string
+	for _, match := range reUseShenA.FindAllStringSubmatch(text, -1) {
+		claims = append(claims, match[1])
+	}
+	for _, match := range reUseShenB.FindAllStringSubmatch(text, -1) {
+		claims = append(claims, match[1])
+	}
+	missing := make(map[string]bool)
+	if idx := strings.Index(value, "用神不现："); idx >= 0 {
+		rest := value[idx+len("用神不现："):]
+		if end := strings.Index(rest, "；"); end >= 0 {
+			rest = rest[:end]
+		}
+		for _, name := range strings.Split(rest, "、") {
+			missing[strings.TrimSpace(name)] = true
+		}
+	}
+	for _, claim := range claims {
+		if missing[claim] {
+			add("用神%s在盘面不现，输出不能直接写成可用", claim)
+			continue
+		}
+		if !allowed[claim] {
+			add("用神应为%s，输出却写成%s", prefix, claim)
 		}
 	}
 }

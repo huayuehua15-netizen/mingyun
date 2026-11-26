@@ -13,7 +13,7 @@
 | 模块 | 状态 |
 |---|---|
 | `paipan/calendar` 历法层（干支、节气、月将、旬空、真太阳时、子初换日） | ✅ |
-| `paipan/liuyao` 六爻（八宫、纳甲、六亲、六神、世应、伏神、旺衰、动变） | ✅ v0.1.0 |
+| `paipan/liuyao` 六爻（八宫、纳甲、六亲、六神、世应、伏神、旺衰、动变、通用取用神） | ✅ v0.2.0 |
 | `apps/api` 单二进制（`serve` / `calendar` / `paipan`） | ✅ |
 | HTTP API：排盘、盘面详情、列表、历法、能力清单、SSE 解读 | ✅ |
 | `apps/web` 游戏化四场景（山门 / 案上起卦 / 藏卦例 / 三术）、三卷行卷、逐爻生长、卦例封存、SSE 解读 | ✅ |
@@ -153,11 +153,15 @@ MINGYUN_AI_MODEL=qwen2.5:7b
 
 ## 解读是怎么做的
 
-1. Go 引擎只产出 `facts`：卦名、宫位、世应、月建日辰、旬空、六爻纳甲六亲六神动静、动爻变爻、伏神。AI 不排盘、不补爻。
-2. 提示词把 facts 原样列出，把用户问题包在 `<<<USER_QUESTION>>>` 里，声明为数据而非指令，并固定四段输出：`盘面要点 / 断语 / 应期与走向 / 建议`。提示词在 `apps/api/internal/ai/prompt.go`，事实清单由 `paipan/liuyao/facts.go` 生成；盘面计算与解读是两段分离的职责。
-3. `POST /api/v1/charts/{id}/interpret` 用 SSE 返回 `meta / delta / usage / done / error`；前端用 `fetch` + `ReadableStream` 解析，逐字渲染。
-4. 在线模型先完整生成，再由 `AuditReading` 做盘面事实校验：四段标题、绝对化承诺、事实之外的卦名/干支/神煞、静爻说成动爻、六亲和世应安错爻位，任一项不过就整段拦截，不把编造内容流到浏览器。校验通过后才分片下发。
-5. 没有模型时，同一路由返回离线摘要：四段结构保留，但明确不判吉凶、不推应期。
+1. Go 引擎只产出 `facts`：问事类别、用神、卦名、宫位、世应、月建日辰、旬空、六爻纳甲六亲六神动静、动爻变爻、伏神。AI 不排盘、不补爻。
+2. 取用神由 `paipan/liuyao/yongshen.go` 的规则表决定，不看模型心情：考试父母、求财妻财、事业官鬼、感情男取妻财/女取官鬼、健康世爻、出行世爻、失物妻财、官司官鬼、家人按所指六亲。类别可由 `topic` 指定，未指定时按问题关键词分类；感情未标性别时并列两种取法并标 `待确认`，不硬取。
+
+![通用取用神事实](docs/preview/yongshen-facts.png)
+
+3. 提示词把 facts 原样列出，把用户问题包在 `<<<USER_QUESTION>>>` 里，声明为数据而非指令，并固定四段输出：`盘面要点 / 断语 / 应期与走向 / 建议`。提示词在 `apps/api/internal/ai/prompt.go`，事实清单由 `paipan/liuyao/facts.go` 生成；盘面计算与解读是两段分离的职责。
+4. `POST /api/v1/charts/{id}/interpret` 用 SSE 返回 `meta / delta / usage / done / error`；前端用 `fetch` + `ReadableStream` 解析，逐字渲染。
+5. 在线模型先完整生成，再由 `AuditReading` 做盘面事实校验：四段标题、绝对化承诺、事实之外的卦名/干支/神煞、静爻说成动爻、六亲和世应安错爻位、用神与规则不一致，任一项不过就整段拦截，不把编造内容流到浏览器。校验通过后才分片下发。
+6. 没有模型时，同一路由返回离线摘要：四段结构保留，但明确不判吉凶、不推应期。
 
 ```
 curl -N -X POST "localhost:8080/api/v1/charts/{chart_id}/interpret" \
@@ -171,7 +175,7 @@ curl -N -X POST "localhost:8080/api/v1/charts/{chart_id}/interpret" \
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/v1/charts/liuyao/cast` | 起卦：`mode=coin` 传 `coins` 六组三枚，或 `mode=manual` 传 `lines` |
+| POST | `/api/v1/charts/liuyao/cast` | 起卦：`mode=coin` 传 `coins` 六组三枚，或 `mode=manual` 传 `lines`；可选 `topic/gender` |
 | GET | `/api/v1/charts/{id}` | 完整盘面（含全部 facts） |
 | GET | `/api/v1/charts?limit=10` | 盘面列表 |
 | GET | `/api/v1/meta/capabilities` | 术数能力清单 |
@@ -206,6 +210,7 @@ curl -s -X POST localhost:8080/api/v1/charts/liuyao/cast \
 先读 `docs/README.md`。重点：
 
 - `docs/03-排盘算法规格.md`：历法与六爻规则
+- `docs/liuyao-rulebook.md`：通用取用神规则表与未完成边界
 - `docs/05-API接口契约.md`：信封、错误码、SSE
 - `docs/06-AI解读与提示词工程.md`：四段输出、facts 预算、校验与评测
 - `docs/09-合规与风险.md`：公开部署的合规边界

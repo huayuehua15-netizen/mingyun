@@ -68,6 +68,23 @@ func buildFacts(p Payload) []schema.Fact {
 		Weight: schema.WeightCore,
 	})
 
+	if p.UseShen != nil {
+		facts = append(facts, schema.Fact{
+			Key:    "liuyao.topic",
+			Label:  "问事类别",
+			Value:  p.UseShen.TopicLabel,
+			Anchor: "/payload/use_shen/topic",
+			Weight: schema.WeightCore,
+		})
+		facts = append(facts, schema.Fact{
+			Key:    "liuyao.use_shen",
+			Label:  "用神",
+			Value:  p.UseShen.FactValue(),
+			Anchor: "/payload/use_shen",
+			Weight: schema.WeightCore,
+		})
+	}
+
 	for i, l := range p.Lines {
 		facts = append(facts, schema.Fact{
 			Key:    fmt.Sprintf("liuyao.line.%d", l.Position),

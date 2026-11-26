@@ -19,6 +19,8 @@ import (
 type castRequest struct {
 	Mode             string            `json:"mode"`
 	Question         string            `json:"question"`
+	Topic            string            `json:"topic,omitempty"`
+	Gender           string            `json:"gender,omitempty"`
 	At               string            `json:"at"`
 	TZ               string            `json:"tz"`
 	Lon              *float64          `json:"lon"`
@@ -83,6 +85,8 @@ func (s *Server) handleCast(w http.ResponseWriter, r *http.Request) {
 	in := liuyao.Input{
 		Mode:     mode,
 		Question: strings.TrimSpace(req.Question),
+		Topic:    strings.TrimSpace(req.Topic),
+		Gender:   strings.TrimSpace(req.Gender),
 	}
 	var toss *entropy.Toss
 

@@ -70,6 +70,24 @@ export interface FuShen {
   wu_xing: string
 }
 
+export interface UseShenCandidate {
+  name: string
+  positions?: number[]
+  fu_positions?: number[]
+}
+
+export interface UseShenPlan {
+  topic: string
+  topic_label: string
+  rule_id: string
+  confidence: 'definite' | 'needs_gender' | 'open' | 'fuzzy' | string
+  primary?: string[]
+  secondary?: string[]
+  taboo?: string[]
+  rationale: string
+  candidates?: UseShenCandidate[]
+}
+
 export interface LiuYaoPayload {
   question?: string
   gua_name: string
@@ -89,6 +107,7 @@ export interface LiuYaoPayload {
   month_zhi: string
   day_zhi: string
   xun_kong: [string, string]
+  use_shen?: UseShenPlan
 }
 
 export interface Entropy {

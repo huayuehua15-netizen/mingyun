@@ -182,6 +182,22 @@ func TestCastManual(t *testing.T) {
 	if payload["gua_name"] != "乾为天" {
 		t.Errorf("卦名 = %v", payload["gua_name"])
 	}
+	useShen, ok := payload["use_shen"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload 缺少 use_shen：%T", payload["use_shen"])
+	}
+	if useShen["topic"] != "exam" || useShen["rule_id"] != "YS-03" {
+		t.Errorf("考试用神规则 = %v / %v", useShen["topic"], useShen["rule_id"])
+	}
+	var useShenFact bool
+	for _, f := range view.Facts {
+		if f.Label == "用神" {
+			useShenFact = true
+		}
+	}
+	if !useShenFact {
+		t.Error("core facts 缺少用神事实")
+	}
 	for _, f := range view.Facts {
 		if f.Weight != schema.WeightCore {
 			t.Errorf("排盘响应默认只回 core 事实，出现了 %s", f.Weight)
