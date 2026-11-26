@@ -282,9 +282,25 @@ func checkUseShen(text string, facts []schema.Fact, add func(string, ...any)) {
 			break
 		}
 	}
-	if value == "" || strings.Contains(value, "主用神：待定") || strings.Contains(value, "男占") {
+	if value == "" {
 		return
 	}
+
+	var claims []string
+	for _, match := range reUseShenA.FindAllStringSubmatch(text, -1) {
+		claims = append(claims, match[1])
+	}
+	for _, match := range reUseShenB.FindAllStringSubmatch(text, -1) {
+		claims = append(claims, match[1])
+	}
+
+	if strings.Contains(value, "待确认：求测者性别") || strings.Contains(value, "待确认：所问对象") {
+		if len(claims) > 0 {
+			add("用神待确认，输出不能只取一个主用神：%s", strings.Join(claims, "、"))
+		}
+		return
+	}
+
 	prefix := value
 	if idx := strings.Index(prefix, "；"); idx >= 0 {
 		prefix = prefix[:idx]
@@ -298,13 +314,6 @@ func checkUseShen(text string, facts []schema.Fact, add func(string, ...any)) {
 		return
 	}
 
-	var claims []string
-	for _, match := range reUseShenA.FindAllStringSubmatch(text, -1) {
-		claims = append(claims, match[1])
-	}
-	for _, match := range reUseShenB.FindAllStringSubmatch(text, -1) {
-		claims = append(claims, match[1])
-	}
 	missing := make(map[string]bool)
 	if idx := strings.Index(value, "用神不现："); idx >= 0 {
 		rest := value[idx+len("用神不现："):]

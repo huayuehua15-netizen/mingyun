@@ -145,3 +145,31 @@ func TestAuditReadingChecksUseShen(t *testing.T) {
 		t.Fatalf("拦截原因应指出规则用神为妻财: %s", joined)
 	}
 }
+
+func TestAuditReadingRejectsHardUseShenWhenGenderUnknown(t *testing.T) {
+	chart := auditFixture()
+	chart.Facts = append(chart.Facts, schema.Fact{
+		Key:    "liuyao.use_shen",
+		Label:  "用神",
+		Value:  "主用神：男占妻财 / 女占官鬼；待确认：求测者性别",
+		Weight: schema.WeightCore,
+	})
+	text := `## 盘面要点
+本卦泽火革，变卦泽雷随。
+
+## 断语
+以妻财为用神，因为妻财在三爻，所以对方仍然在意。
+
+## 应期与走向
+本月内观察。
+
+## 建议
+先观察。`
+	issues := AuditReading(text, chart)
+	if len(issues) == 0 {
+		t.Fatal("性别未确认时硬取妻财，应拦截")
+	}
+	if joined := strings.Join(issues, "；"); !strings.Contains(joined, "待确认") {
+		t.Fatalf("拦截原因应指出用神待确认: %s", joined)
+	}
+}
