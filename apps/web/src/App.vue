@@ -91,6 +91,19 @@ const boardRevealed = 6
 
 const coreFacts = computed(() => chart.value?.facts ?? [])
 
+const currentArchiveEntry = computed(() => {
+  const current = chart.value
+  if (!current) return null
+  return archive.value.find((entry) => entry.chart_id === current.chart_id) ?? null
+})
+
+const currentCaseOrdinal = computed(() => {
+  const current = chart.value
+  if (!current) return 0
+  const index = archive.value.findIndex((entry) => entry.chart_id === current.chart_id)
+  return index >= 0 ? archive.value.length - index : 0
+})
+
 interface ReadingSections {
   overview: string
   verdict: string
@@ -349,6 +362,14 @@ function reset() {
   chart.value = null
   tosses.value = []
   error.value = ''
+}
+
+function startAnother() {
+  reset()
+  nextTick(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    questionEl.value?.focus()
+  })
 }
 
 function resetReading() {
@@ -890,6 +911,29 @@ function formatTime(iso: string): string {
         </template>
         <template v-else>解读生成中；盘面事实以引擎计算为准。</template>
       </p>
+    </section>
+
+    <section
+      v-if="currentArchiveEntry"
+      class="case-seal-panel"
+      aria-label="卦例已收录"
+    >
+      <div class="case-seal-stamp">
+        <b>录</b>
+        <span>已藏</span>
+      </div>
+      <div class="case-seal-copy">
+        <span class="case-seal-kicker">卷一 · 六爻</span>
+        <strong>此卦已收入卦例</strong>
+        <p>
+          {{ chart?.payload.gua_name }} · {{ formatTime(currentArchiveEntry.saved_at) }} ·
+          第 {{ currentCaseOrdinal }} 例
+        </p>
+      </div>
+      <div class="case-seal-actions">
+        <button class="seal-btn seal-btn--small" @click="startAnother">再问一事</button>
+        <button class="text-btn" @click="navigate('archive')">翻看卦例</button>
+      </div>
     </section>
         </div>
       </section>

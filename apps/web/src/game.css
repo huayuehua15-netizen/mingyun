@@ -729,6 +729,150 @@
   border-top: 1px solid var(--line);
 }
 
+.home-route.is-revealed .route-line {
+  animation: route-draw 560ms 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: left center;
+}
+
+.home-route.is-revealed .route-stop {
+  animation: route-stop-in 460ms calc(180ms + var(--delay)) ease-out both;
+}
+
+.home-route.is-revealed .route-node {
+  animation: seal-tamp 360ms calc(300ms + var(--delay)) ease-out both;
+}
+
+.home-route.is-revealed .route-card {
+  animation: route-card-unroll 540ms calc(230ms + var(--delay)) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes route-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes route-stop-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes seal-tamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.4) rotate(-7deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.97) rotate(1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes route-card-unroll {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.5;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+/* ---------- 卦例封存 ---------- */
+
+.case-seal-panel {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 16px 20px;
+  border: 1px solid var(--ink);
+  background: var(--paper-2);
+}
+
+.case-seal-stamp {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 2px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  transform: rotate(-2deg);
+  animation: seal-tamp 420ms ease-out both;
+}
+
+.case-seal-stamp b {
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.case-seal-stamp span {
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px solid var(--cinnabar);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+.case-seal-copy {
+  min-width: 0;
+}
+
+.case-seal-kicker {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--cinnabar);
+}
+
+.case-seal-copy strong {
+  display: block;
+  margin-top: 3px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.case-seal-copy p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--grey);
+}
+
+.case-seal-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-left: auto;
+}
+
 /* ---------- 场景页通用 ---------- */
 
 .scene-view {
@@ -1590,6 +1734,20 @@
     max-width: 100%;
   }
 
+  .case-seal-panel {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .case-seal-actions {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+  }
+
   .archive-row {
     grid-template-columns: 30px minmax(0, 1fr) 20px;
     gap: 12px;
@@ -1666,7 +1824,11 @@
   .home-view,
   .scene-view,
   .archive-view,
-  .codex-view {
+  .codex-view,
+  .route-line,
+  .route-stop,
+  .route-node,
+  .route-card {
     animation: none;
   }
 }

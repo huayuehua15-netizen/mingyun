@@ -16,7 +16,7 @@
 | `paipan/liuyao` 六爻（八宫、纳甲、六亲、六神、世应、伏神、旺衰、动变） | ✅ v0.1.0 |
 | `apps/api` 单二进制（`serve` / `calendar` / `paipan`） | ✅ |
 | HTTP API：排盘、盘面详情、列表、历法、能力清单、SSE 解读 | ✅ |
-| `apps/web` 游戏化四场景（山门 / 案上起卦 / 藏卦例 / 三术）、一爻一摇、逐爻生长、SSE 解读 | ✅ |
+| `apps/web` 游戏化四场景（山门 / 案上起卦 / 藏卦例 / 三术）、三卷行卷、逐爻生长、卦例封存、SSE 解读 | ✅ |
 | AI 解读（OpenAI 兼容 SSE、四段输出、离线兜底） | ✅ |
 | Docker Compose（API + Nginx 静态站） | ✅ |
 | `paipan/daliuren` 大六壬 / `paipan/ziwei` 紫微斗数 | ⏳ |
@@ -35,6 +35,10 @@
 案上起卦：问事、铜钱六摇、盘面、四段解读：
 
 <img src="docs/preview/final-cast.png" width="760" alt="案上起卦与盘面">
+
+解卦完成后，本卦自动收入卦例，落一枚「录」印，并给出再问 / 翻卦例的下一步：
+
+<img src="docs/preview/case-seal.png" width="760" alt="卦例封存">
 
 藏卦例：只存在浏览器 localStorage，点一卦可以翻回原盘：
 

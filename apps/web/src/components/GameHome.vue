@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { ArchiveEntry, CalendarContext } from '../types'
 import InkScene from './InkScene.vue'
 
@@ -15,6 +15,32 @@ const emit = defineEmits<{
   (e: 'archive'): void
   (e: 'codex'): void
 }>()
+
+const routeEl = ref<HTMLElement | null>(null)
+const routeVisible = ref(false)
+let routeObserver: IntersectionObserver | null = null
+
+onMounted(() => {
+  if (!routeEl.value) return
+  if (!('IntersectionObserver' in window)) {
+    routeVisible.value = true
+    return
+  }
+  routeObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        routeVisible.value = true
+        routeObserver?.disconnect()
+      }
+    },
+    { threshold: 0.18 }
+  )
+  routeObserver.observe(routeEl.value)
+})
+
+onUnmounted(() => {
+  routeObserver?.disconnect()
+})
 
 const dateLine = computed(() => {
   const c = props.calendar
@@ -133,7 +159,11 @@ function enterMethod(open: boolean) {
       </aside>
     </div>
 
-    <section class="home-route">
+    <section
+      ref="routeEl"
+      class="home-route"
+      :class="{ 'is-revealed': routeVisible }"
+    >
       <header class="section-head">
         <span>行卷</span>
         <i></i>
@@ -144,10 +174,11 @@ function enterMethod(open: boolean) {
       <div class="route-track">
         <div class="route-line" aria-hidden="true"></div>
         <button
-          v-for="m in methods"
+          v-for="(m, i) in methods"
           :key="m.key"
           class="route-stop"
           :class="{ 'is-open': m.open, 'is-locked': !m.open }"
+          :style="{ '--delay': `${i * 120}ms` }"
           :disabled="!m.open"
           @click="enterMethod(m.open)"
         >
