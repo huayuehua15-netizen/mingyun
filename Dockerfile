@@ -1,6 +1,7 @@
-ARG GO_VERSION=1.25
+ARG GO_IMAGE=golang:1.25-alpine
+ARG ALPINE_IMAGE=alpine:3.21
 
-FROM golang:${GO_VERSION}-alpine AS builder
+FROM ${GO_IMAGE} AS builder
 ARG GOPROXY=https://goproxy.cn,direct
 ARG VERSION=0.1.0-dev
 ENV GOPROXY=${GOPROXY} \
@@ -19,7 +20,7 @@ COPY apps/api ./apps/api
 RUN cd /src/apps/api \
  && go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/mingyun ./cmd/mingyun
 
-FROM alpine:3.21
+FROM ${ALPINE_IMAGE}
 ARG VERSION=0.1.0-dev
 LABEL org.opencontainers.image.title="mingyun" \
       org.opencontainers.image.description="AI 术数排盘平台（六爻 / 大六壬 / 紫微斗数）" \

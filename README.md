@@ -56,6 +56,8 @@ docker compose up --build
 
 只想跑离线排盘，不填任何 `MINGYUN_AI_*` 即可。
 
+> 如果 `docker compose build` 卡在 Docker Hub 的 TLS handshake timeout，在 `.env` 里把 `GO_IMAGE` / `ALPINE_IMAGE` / `NODE_IMAGE` / `NGINX_IMAGE` 换成可访问的镜像源（`.env.example` 里有 DaoCloud 示例），或先手动 `docker pull` 对应镜像并 `docker tag` 成默认名。Compose 已把四个基础镜像都做成了 build arg。
+
 ### 本地开发
 
 需要 Go 1.25+、Node 22+。

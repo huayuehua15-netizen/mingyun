@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        GO_IMAGE: ${GO_IMAGE:-golang:1.25-alpine}
+        ALPINE_IMAGE: ${ALPINE_IMAGE:-alpine:3.21}
     environment:
       APP_SECRET: ${APP_SECRET:-change-me-in-production-please}
       MINGYUN_AI_BASE_URL: ${MINGYUN_AI_BASE_URL:-}
@@ -27,6 +30,9 @@ services:
     build:
       context: apps/web
       dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.27-alpine}
     ports:
       - "${WEB_PORT:-8080}:80"
     depends_on:
