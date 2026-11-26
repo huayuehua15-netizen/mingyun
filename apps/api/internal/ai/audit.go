@@ -274,6 +274,27 @@ func checkShiYing(text, factsText string, add func(string, ...any)) {
 	}
 }
 
+type useShenClaim struct {
+	name       string
+	contextual bool
+}
+
+func collectUseShenClaims(text string) []useShenClaim {
+	var claims []useShenClaim
+	for _, re := range []*regexp.Regexp{reUseShenA, reUseShenB} {
+		for _, loc := range re.FindAllStringSubmatchIndex(text, -1) {
+			name := text[loc[2]:loc[3]]
+			prefix := text[:loc[0]]
+			if cut := strings.LastIndexAny(prefix, "。；，,\n"); cut >= 0 {
+				prefix = prefix[cut+1:]
+			}
+			contextual := strings.Contains(prefix, "男占") || strings.Contains(prefix, "女占")
+			claims = append(claims, useShenClaim{name: name, contextual: contextual})
+		}
+	}
+	return claims
+}
+
 func checkUseShen(text string, facts []schema.Fact, add func(string, ...any)) {
 	var value string
 	for _, f := range facts {
@@ -286,17 +307,13 @@ func checkUseShen(text string, facts []schema.Fact, add func(string, ...any)) {
 		return
 	}
 
-	var claims []string
-	for _, match := range reUseShenA.FindAllStringSubmatch(text, -1) {
-		claims = append(claims, match[1])
-	}
-	for _, match := range reUseShenB.FindAllStringSubmatch(text, -1) {
-		claims = append(claims, match[1])
-	}
+	claims := collectUseShenClaims(text)
 
 	if strings.Contains(value, "待确认：求测者性别") || strings.Contains(value, "待确认：所问对象") {
-		if len(claims) > 0 {
-			add("用神待确认，输出不能只取一个主用神：%s", strings.Join(claims, "、"))
+		for _, claim := range claims {
+			if !claim.contextual {
+				add("用神待确认，输出不能只取一个主用神：%s", claim.name)
+			}
 		}
 		return
 	}
@@ -325,12 +342,12 @@ func checkUseShen(text string, facts []schema.Fact, add func(string, ...any)) {
 		}
 	}
 	for _, claim := range claims {
-		if missing[claim] {
-			add("用神%s在盘面不现，输出不能直接写成可用", claim)
+		if missing[claim.name] {
+			add("用神%s在盘面不现，输出不能直接写成可用", claim.name)
 			continue
 		}
-		if !allowed[claim] {
-			add("用神应为%s，输出却写成%s", prefix, claim)
+		if !allowed[claim.name] {
+			add("用神应为%s，输出却写成%s", prefix, claim.name)
 		}
 	}
 }

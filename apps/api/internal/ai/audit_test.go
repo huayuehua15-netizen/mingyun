@@ -173,3 +173,27 @@ func TestAuditReadingRejectsHardUseShenWhenGenderUnknown(t *testing.T) {
 		t.Fatalf("拦截原因应指出用神待确认: %s", joined)
 	}
 }
+
+func TestAuditReadingAllowsDualGenderUseShen(t *testing.T) {
+	chart := auditFixture()
+	chart.Facts = append(chart.Facts, schema.Fact{
+		Key:    "liuyao.use_shen",
+		Label:  "用神",
+		Value:  "主用神：男占妻财 / 女占官鬼；待确认：求测者性别",
+		Weight: schema.WeightCore,
+	})
+	text := `## 盘面要点
+本卦泽火革，变卦泽雷随。
+
+## 断语
+男占以妻财为用神，女占以官鬼为用神；性别未确认前不合并断。
+
+## 应期与走向
+本月内观察。
+
+## 建议
+先确认求测者性别，再继续。`
+	if issues := AuditReading(text, chart); len(issues) > 0 {
+		t.Fatalf("并列说明两种取法不应被误拦: %v", issues)
+	}
+}
