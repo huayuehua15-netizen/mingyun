@@ -35,7 +35,12 @@
 
 <img src="docs/preview/toss.gif" width="720" alt="抛币动画">
 
-> 完整盘面与解读面板的实机截图暂未同步到仓库；本地启动后在结果页可直接查看。离线模式只列事实、不判吉凶，接入模型后同一位置变为四段流式解读。
+完整盘面与解读面板：
+
+<img src="docs/preview/result.png" width="720" alt="完整盘面 · 离线摘要">
+<img src="docs/preview/result-ai-demo.png" width="720" alt="四段解读 · 本地 mock 模型">
+
+> `result.png` 是未配置模型时的离线态：四段结构保留，只列事实、不判吉凶。`result-ai-demo.png` 是本地 mock 模型跑通的流式四段演示，不代表具体模型的固定文风。
 
 ## 快速开始
 
