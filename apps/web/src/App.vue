@@ -1,9 +1,28 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { castLiuYao, fetchCalendar, streamInterpret } from './api'
 import type { InterpretEvent } from './api'
-import type { CalendarContext, ChartView } from './types'
+import type { ArchiveEntry, CalendarContext, ChartView, ViewName } from './types'
 import LiuYaoBoard from './components/LiuYaoBoard.vue'
+import GameHome from './components/GameHome.vue'
+import GameArchive from './components/GameArchive.vue'
+import GameCodex from './components/GameCodex.vue'
+import GameNav from './components/GameNav.vue'
+
+const VALID_VIEWS: ViewName[] = ['home', 'cast', 'archive', 'codex']
+
+function resolveInitialView(): ViewName {
+  const fromHash = window.location.hash.replace(/^#\/?/, '') as ViewName
+  if (VALID_VIEWS.includes(fromHash)) return fromHash
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('cast') === '1') return 'cast'
+  return 'home'
+}
+
+const view = ref<ViewName>(resolveInitialView())
+const archive = ref<ArchiveEntry[]>([])
+const ARCHIVE_KEY = 'mingyun.archive.v1'
+const ARCHIVE_LIMIT = 20
 
 const question = ref('')
 const mode = ref<'coin' | 'manual'>('coin')
@@ -162,18 +181,90 @@ const castLabel = computed(() => {
 
 const castDisabled = computed(() => shaking.value || submitting.value)
 
-const almanacTerms = computed(() => {
-  if (!calendar.value) return []
-  const c = calendar.value
-  return [
-    { k: '节气', v: `${c.prev_term.name}后` },
-    { k: '月将', v: `${c.month_general.zhi}将${c.month_general.name}` },
-    { k: '旬空', v: c.xun_kong.join('、') },
-    { k: '时辰', v: `${c.hour_gz}时` }
-  ]
-})
+function syncFromHash() {
+  const next = window.location.hash.replace(/^#\/?/, '') as ViewName
+  if (VALID_VIEWS.includes(next)) view.value = next
+}
+
+function navigate(next: ViewName) {
+  view.value = next
+  if (window.location.hash !== `#/${next}`) window.location.hash = `#/${next}`
+  if (next === 'cast') nextTick(() => questionEl.value?.focus())
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function loadArchive() {
+  try {
+    const raw = window.localStorage.getItem(ARCHIVE_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return
+    archive.value = parsed
+      .filter((item): item is ArchiveEntry => !!item && !!item.chart_id && !!item.chart)
+      .slice(0, ARCHIVE_LIMIT)
+  } catch {
+    // 本地存档损坏时静默丢弃，不影响起卦。
+  }
+}
+
+function persistArchive() {
+  try {
+    window.localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archive.value))
+  } catch {
+    // 隐私模式下 localStorage 可能不可写；不阻断当前解读。
+  }
+}
+
+function saveCurrentReading() {
+  const current = chart.value
+  const text = reading.value.text.trim()
+  if (!current || !text) return
+
+  const entry: ArchiveEntry = {
+    chart_id: current.chart_id,
+    question: current.question || question.value.trim(),
+    gua_name: current.payload.gua_name,
+    changed_gua: current.payload.changed_gua,
+    saved_at: new Date().toISOString(),
+    mode: reading.value.mode,
+    model: reading.value.model,
+    reading: text,
+    chart: current
+  }
+  const existing = archive.value.findIndex((item) => item.chart_id === entry.chart_id)
+  if (existing >= 0) archive.value.splice(existing, 1)
+  archive.value = [entry, ...archive.value].slice(0, ARCHIVE_LIMIT)
+  persistArchive()
+}
+
+function openArchive(entry: ArchiveEntry) {
+  if (!entry.chart) return
+  readingAbort?.abort()
+  readingAbort = null
+  readingSeq += 1
+  chart.value = entry.chart
+  question.value = entry.question || entry.chart.question || ''
+  if (entry.chart.calendar) calendar.value = entry.chart.calendar
+  reading.value = {
+    status: 'done',
+    mode: entry.mode,
+    model: entry.model,
+    provider: '',
+    text: entry.reading,
+    error: ''
+  }
+  view.value = 'cast'
+  window.history.replaceState(null, '', '#/cast')
+  nextTick(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  })
+}
 
 onMounted(async () => {
+  loadArchive()
+  syncFromHash()
+  window.addEventListener('hashchange', syncFromHash)
+
   const params = new URLSearchParams(window.location.search)
   const presetAt = params.get('at')
   if (presetAt) replayAt = presetAt
@@ -199,7 +290,15 @@ onMounted(async () => {
     // 盘头信息拿不到时静默降级，不打断起卦。
   }
 
-  if (params.get('cast') === '1') await autoCast()
+  if (params.get('cast') === '1') {
+    view.value = 'cast'
+    window.history.replaceState(null, '', '#/cast')
+    await autoCast()
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', syncFromHash)
 })
 
 function parseBacks(raw: string | null): number[][] | null {
@@ -309,6 +408,9 @@ async function startReading() {
     )
     if (seq === readingSeq && reading.value.status === 'streaming') {
       reading.value.status = 'done'
+    }
+    if (seq === readingSeq && reading.value.status === 'done') {
+      saveCurrentReading()
     }
   } catch (e) {
     if (ctrl.signal.aborted || seq !== readingSeq) return
@@ -444,9 +546,9 @@ function formatTime(iso: string): string {
 </script>
 
 <template>
-  <div class="page">
-    <header class="topbar">
-      <a class="brand" href="/">
+  <div class="game-shell">
+    <header class="game-topbar">
+      <button class="brand" type="button" @click="navigate('home')">
         <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
           <rect width="32" height="32" fill="#9e3327" />
           <text
@@ -460,38 +562,46 @@ function formatTime(iso: string): string {
         </svg>
         命云
         <span>MINGYUN</span>
-      </a>
-      <nav class="nav">
-        <a class="is-active" href="#cast">六爻</a>
-        <span class="is-soon">大六壬<sup>筹备</sup></span>
-        <span class="is-soon">紫微斗数<sup>筹备</sup></span>
-        <i class="nav-div"></i>
+      </button>
+      <div class="game-hud">
+        <span class="hud-cell"><em>卦例</em><b>{{ archive.length }}</b></span>
+        <span v-if="calendar" class="hud-cell"><em>日</em><b>{{ calendar.day_gz }}</b></span>
+        <span class="hud-cell hud-cell--quiet"><em>三术</em><b>六爻</b></span>
         <a href="https://github.com/huayuehua15-netizen/mingyun" target="_blank" rel="noopener">GitHub ↗</a>
-      </nav>
+      </div>
     </header>
 
-    <section class="masthead">
-      <div class="masthead-copy">
-        <div class="kicker"><i></i>AI 术数排盘 · 开源</div>
-        <h1>问一事，起一卦</h1>
-        <p>铜钱六摇，装卦断事。盘面由确定性引擎计算，解读交由可自主配置的大模型——它能编故事，但改不了卦。</p>
-      </div>
-      <aside v-if="calendar" class="almanac">
-        <div class="almanac-date">{{ calendar.year_gz }}年 {{ calendar.month_gz }}月 {{ calendar.day_gz }}日</div>
-        <div class="almanac-list">
-          <div v-for="t in almanacTerms" :key="t.k">
-            <label>{{ t.k }}</label>
-            <span>{{ t.v }}</span>
-          </div>
-        </div>
-        <div class="almanac-foot">
-          真太阳时{{ calendar.true_solar_used ? '已校正' : '未校正' }} · 东经 113.39°
-        </div>
-        <div class="almanac-seal">问</div>
-      </aside>
-    </section>
+    <GameHome
+        v-if="view === 'home'"
+        key="home"
+        :calendar="calendar"
+        :archive-count="archive.length"
+        :has-chart="!!chart"
+        :last-entry="archive[0] || null"
+        @start="navigate('cast')"
+        @archive="navigate('archive')"
+        @codex="navigate('codex')"
+      />
 
-    <section id="cast" class="cast-panel">
+      <section v-else-if="view === 'cast'" key="cast" class="scene-view cast-view">
+        <span class="view-watermark" aria-hidden="true">卦</span>
+        <header class="scene-bar">
+          <button class="scene-back" @click="navigate('home')">← 山门</button>
+          <div class="scene-heading">
+            <span>卷一</span>
+            <h1>{{ chart ? '卦已成' : '案上起卦' }}</h1>
+          </div>
+          <div class="scene-steps" aria-label="起卦进度">
+            <span :class="{ 'is-done': questionReady }">问事</span>
+            <i></i>
+            <span :class="{ 'is-done': tosses.length > 0 }">摇卦</span>
+            <i></i>
+            <span :class="{ 'is-done': !!chart }">解卦</span>
+          </div>
+        </header>
+
+        <div class="scene-body">
+          <section id="cast" class="cast-panel">
       <div class="cast-row">
         <div class="ask">
           <label for="question">所问之事 <span>QUESTION</span></label>
@@ -781,10 +891,30 @@ function formatTime(iso: string): string {
         <template v-else>解读生成中；盘面事实以引擎计算为准。</template>
       </p>
     </section>
+        </div>
+      </section>
 
-    <footer class="footnote">
+      <GameArchive
+        v-else-if="view === 'archive'"
+        key="archive"
+        :entries="archive"
+        @open="openArchive"
+        @cast="navigate('cast')"
+        @home="navigate('home')"
+      />
+
+      <GameCodex
+        v-else
+        key="codex"
+        @cast="navigate('cast')"
+        @home="navigate('home')"
+      />
+
+    <footer class="footnote game-foot">
       <span>命云 MingYun · MIT 开源 · 盘面可复核</span>
       <span>仅供传统文化学习、研究与娱乐，不构成任何专业建议。</span>
     </footer>
+
+    <GameNav :current="view" :archive-count="archive.length" @navigate="navigate" />
   </div>
 </template>

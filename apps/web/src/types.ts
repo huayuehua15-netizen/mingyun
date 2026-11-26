@@ -120,3 +120,21 @@ export interface Envelope<T> {
   request_id: string
   server_time: string
 }
+
+export type ViewName = 'home' | 'cast' | 'archive' | 'codex'
+
+/**
+ * 卦例存档只保存在浏览器本机，不上传服务端。
+ * chart 存完整盘面，便于从「卦例」直接翻回原盘。
+ */
+export interface ArchiveEntry {
+  chart_id: string
+  question: string
+  gua_name: string
+  changed_gua?: string
+  saved_at: string
+  mode: 'ai' | 'offline' | ''
+  model: string
+  reading: string
+  chart: ChartView
+}

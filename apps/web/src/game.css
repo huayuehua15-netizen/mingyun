@@ -1,0 +1,1486 @@
+/* ---------- 游戏化外层 ---------- */
+
+.game-shell {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 0 40px 132px;
+}
+
+.game-topbar {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  height: 74px;
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.game-topbar .brand {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.game-hud {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.hud-cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 0 18px;
+  border-right: 1px solid var(--line);
+  line-height: 1;
+}
+
+.hud-cell em {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--grey);
+}
+
+.hud-cell b {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-weight: 400;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.hud-cell--quiet b {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.game-hud a {
+  margin-left: 18px;
+  color: var(--grey);
+  text-decoration: none;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+}
+
+.game-hud a:hover {
+  color: var(--cinnabar);
+}
+
+@keyframes view-in {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.home-view,
+.scene-view,
+.archive-view,
+.codex-view {
+  animation: view-in 260ms ease-out both;
+}
+
+/* ---------- 卷首 / 山门 ---------- */
+
+.home-view {
+  padding-top: 0;
+}
+
+.home-scene {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 342px;
+  gap: 54px;
+  align-items: end;
+  min-height: min(720px, calc(100vh - 180px));
+  padding: 64px 0 42px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--ink);
+}
+
+.ink-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ink-scene svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ink-sun {
+  fill: var(--cinnabar);
+  opacity: 0.66;
+  animation: sun-breathe 9s ease-in-out infinite;
+}
+
+.ridge-far {
+  fill: #d8cdbb;
+}
+
+.ridge-mid {
+  fill: #a29684;
+}
+
+.ridge-near {
+  fill: #24201a;
+  opacity: 0.92;
+}
+
+.ink-birds {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  opacity: 0.55;
+  animation: birds-drift 12s ease-in-out infinite;
+}
+
+.ink-cloud {
+  fill: none;
+  stroke: #7f7564;
+  stroke-width: 1.2;
+  opacity: 0.42;
+  animation: cloud-drift 16s ease-in-out infinite;
+}
+
+.ink-rule {
+  stroke: #a99c87;
+  stroke-width: 1;
+  opacity: 0.32;
+}
+
+@keyframes sun-breathe {
+  0%,
+  100% {
+    opacity: 0.58;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes birds-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(10px, -4px);
+  }
+}
+
+@keyframes cloud-drift {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(16px);
+  }
+}
+
+.home-copy {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  padding-bottom: 10px;
+}
+
+.chapter-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.26em;
+  color: var(--cinnabar);
+}
+
+.chapter-line span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.chapter-line i {
+  width: 34px;
+  height: 1px;
+  background: var(--cinnabar);
+}
+
+.chapter-line b {
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.home-copy h1 {
+  margin: 24px 0 20px;
+  font-size: clamp(64px, 7.8vw, 104px);
+  line-height: 1.12;
+  letter-spacing: 0.14em;
+}
+
+.home-copy h1 span {
+  display: block;
+}
+
+.home-lede {
+  margin: 0;
+  max-width: 470px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 15px;
+  line-height: 2.1;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+
+.home-actions {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  margin-top: 34px;
+}
+
+.seal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 30px;
+  padding: 15px 26px 15px 32px;
+  border: 1px solid var(--cinnabar);
+  background: var(--cinnabar);
+  color: var(--paper-2);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 20px;
+  letter-spacing: 0.26em;
+  cursor: pointer;
+  transition: background 180ms ease-out, color 180ms ease-out;
+}
+
+.seal-btn i {
+  font-style: normal;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 16px;
+  letter-spacing: 0;
+  transition: transform 180ms ease-out;
+}
+
+.seal-btn:hover {
+  background: transparent;
+  color: var(--cinnabar);
+}
+
+.seal-btn:hover i {
+  transform: translateX(4px);
+}
+
+.seal-btn--small {
+  padding: 10px 18px 10px 22px;
+  gap: 18px;
+  font-size: 15px;
+  letter-spacing: 0.16em;
+}
+
+.text-btn {
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.text-btn:hover {
+  color: var(--cinnabar);
+  border-bottom-color: var(--cinnabar);
+}
+
+.home-stamp {
+  position: absolute;
+  right: 4px;
+  top: 125px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  min-height: 108px;
+  padding: 8px 0;
+  border: 2px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0.1em;
+  transform: rotate(1.5deg);
+}
+
+.home-stamp i {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid var(--cinnabar);
+  font-style: normal;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+
+.home-aside {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-self: end;
+  padding-bottom: 6px;
+}
+
+.quest-board {
+  background: var(--paper-2);
+  border: 1px solid var(--ink);
+}
+
+.quest-board header {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.quest-kicker {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: var(--grey);
+}
+
+.quest-board header b {
+  display: block;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+}
+
+.quest-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+}
+
+.quest-grid div {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+
+.quest-grid div:nth-child(2n) {
+  border-right: 0;
+}
+
+.quest-grid div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.quest-grid dt {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--grey);
+}
+
+.quest-grid dd {
+  margin: 3px 0 0;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.quest-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px;
+  border: 0;
+  border-top: 1px solid var(--ink);
+  background: transparent;
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.quest-link b {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: var(--cinnabar);
+}
+
+.quest-link i {
+  margin-left: auto;
+  font-style: normal;
+  color: var(--grey);
+  transition: transform 160ms ease-out;
+}
+
+.quest-link:hover {
+  color: var(--ink);
+}
+
+.quest-link:hover i {
+  transform: translateX(3px);
+}
+
+.side-note {
+  padding: 14px 18px;
+  border-left: 2px solid var(--rattan);
+  background: var(--paper-2);
+}
+
+.side-kicker {
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--rattan);
+}
+
+.side-note p {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.85;
+  color: var(--ink-2);
+}
+
+.side-note p b {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.home-methods {
+  padding: 34px 0 6px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: var(--grey);
+}
+
+.section-head span {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 20px;
+  letter-spacing: 0.2em;
+  color: var(--ink);
+}
+
+.section-head i {
+  width: 28px;
+  height: 1px;
+  background: var(--cinnabar);
+}
+
+.section-head em {
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+}
+
+.method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.method-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 104px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 180ms ease-out, border-color 180ms ease-out;
+}
+
+.method-card.is-open:hover {
+  transform: translateY(-3px);
+  border-color: var(--ink);
+}
+
+.method-card.is-locked {
+  background: transparent;
+  cursor: default;
+}
+
+.method-glyph {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.method-card.is-locked .method-glyph {
+  border-color: var(--line);
+  color: var(--grey);
+}
+
+.method-text b {
+  display: block;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.method-text em {
+  display: block;
+  margin-top: 4px;
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--grey);
+}
+
+.method-state {
+  align-self: start;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--grey);
+  writing-mode: vertical-rl;
+}
+
+.method-card.is-open .method-state {
+  color: var(--cinnabar);
+}
+
+/* ---------- 场景页通用 ---------- */
+
+.scene-view {
+  position: relative;
+  min-height: calc(100vh - 220px);
+}
+
+.scene-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 22px 0 16px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.scene-bar--page {
+  align-items: center;
+}
+
+.scene-back {
+  flex: none;
+  align-self: center;
+  padding: 5px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--grey);
+  cursor: pointer;
+}
+
+.scene-back:hover {
+  color: var(--cinnabar);
+  border-bottom-color: var(--cinnabar);
+}
+
+.scene-heading span {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: 0.28em;
+  color: var(--cinnabar);
+}
+
+.scene-heading h1 {
+  margin: 3px 0 0;
+  font-size: 34px;
+  line-height: 1.25;
+  letter-spacing: 0.16em;
+}
+
+.scene-steps {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  padding-bottom: 4px;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: var(--line);
+}
+
+.scene-steps span {
+  color: var(--grey);
+  transition: color 200ms ease-out;
+}
+
+.scene-steps span.is-done {
+  color: var(--cinnabar);
+}
+
+.scene-steps i {
+  width: 30px;
+  height: 1px;
+  background: var(--line);
+}
+
+.scene-body {
+  position: relative;
+  z-index: 1;
+  min-height: 50vh;
+}
+
+.view-watermark {
+  position: absolute;
+  right: -8px;
+  bottom: -38px;
+  z-index: 0;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: clamp(130px, 17vw, 230px);
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--ink);
+  opacity: 0.055;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ---------- 藏卦例 ---------- */
+
+.archive-view {
+  position: relative;
+  min-height: calc(100vh - 240px);
+  padding-bottom: 20px;
+}
+
+.archive-count {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.archive-count b {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-weight: 400;
+  font-size: 34px;
+  color: var(--cinnabar);
+}
+
+.archive-count span {
+  font-size: 10px;
+  color: var(--grey);
+}
+
+.archive-body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 286px;
+  gap: 44px;
+  align-items: start;
+}
+
+.archive-intro {
+  grid-column: 1 / -1;
+  margin: 0 0 18px;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--grey);
+}
+
+.archive-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 1px;
+}
+
+.archive-tally {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: baseline;
+  justify-content: start;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--ink);
+  background: var(--paper-2);
+}
+
+.archive-tally span {
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--grey);
+}
+
+.archive-tally b {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-weight: 400;
+  font-size: 44px;
+  line-height: 1;
+  color: var(--cinnabar);
+}
+
+.archive-tally em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--grey);
+}
+
+.archive-tally p {
+  grid-column: 1 / -1;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--grey);
+}
+
+.archive-latest {
+  padding: 16px 18px 14px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.archive-latest h3 {
+  margin: 7px 0 5px;
+  font-size: 27px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+}
+
+.archive-latest > p {
+  margin: 0 0 13px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.archive-latest dl {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.archive-latest dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 3px 0;
+}
+
+.archive-latest dt {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--grey);
+}
+
+.archive-latest dd {
+  margin: 0;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 10px;
+  color: var(--ink-2);
+  text-align: right;
+}
+
+.archive-latest-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 0 4px;
+  border: 0;
+  border-top: 1px solid var(--ink);
+  background: transparent;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.archive-latest-btn i {
+  font-style: normal;
+  color: var(--cinnabar);
+}
+
+.archive-latest-btn:hover {
+  color: var(--cinnabar);
+}
+
+.archive-note {
+  padding: 12px 14px;
+  border-left: 2px solid var(--rattan);
+}
+
+.archive-note p {
+  margin: 5px 0 0;
+  font-size: 10px;
+  line-height: 1.8;
+  color: var(--grey);
+}
+
+.archive-list {
+  border-top: 1px solid var(--ink);
+}
+
+.archive-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 238px 28px;
+  gap: 18px;
+  align-items: center;
+  width: 100%;
+  padding: 16px 12px 16px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease-out;
+}
+
+.archive-row:hover {
+  background: var(--paper-2);
+}
+
+.archive-no {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 12px;
+  color: var(--grey);
+}
+
+.archive-main h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+}
+
+.archive-main p {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--grey);
+  text-align: right;
+}
+
+.archive-meta span.is-ai {
+  color: var(--cinnabar);
+}
+
+.archive-meta time {
+  font-size: 9.5px;
+}
+
+.archive-arrow {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--line);
+  text-align: right;
+}
+
+.archive-row:hover .archive-arrow {
+  color: var(--cinnabar);
+}
+
+.archive-empty {
+  display: flex;
+  align-items: center;
+  gap: 42px;
+  max-width: 720px;
+  margin: 46px auto;
+  padding: 38px 36px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.archive-empty-seal {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 94px;
+  height: 94px;
+  border: 2px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 32px;
+  letter-spacing: 0.08em;
+}
+
+.archive-empty h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+}
+
+.archive-empty p {
+  margin: 0 0 18px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+/* ---------- 三术 ---------- */
+
+.codex-view {
+  position: relative;
+  min-height: calc(100vh - 240px);
+  padding-bottom: 20px;
+}
+
+.codex-mark {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--cinnabar);
+  color: var(--cinnabar);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 18px;
+}
+
+.codex-intro {
+  max-width: 720px;
+  margin: 0 0 26px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 14px;
+  line-height: 2;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+
+.codex-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.codex-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  padding: 24px 24px 22px;
+  border: 1px solid var(--ink);
+  background: var(--paper-2);
+}
+
+.codex-card.is-open {
+  border-top: 4px solid var(--cinnabar);
+}
+
+.codex-card.is-locked {
+  border-color: var(--line);
+  background: transparent;
+}
+
+.codex-no {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  color: var(--line);
+}
+
+.codex-state {
+  align-self: flex-start;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--grey);
+}
+
+.codex-card.is-open .codex-state {
+  border-color: var(--cinnabar);
+  color: var(--cinnabar);
+}
+
+.codex-card h2 {
+  margin: 24px 0 10px;
+  font-size: 42px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+}
+
+.codex-card.is-locked h2 {
+  color: var(--ink-2);
+}
+
+.codex-card > p {
+  margin: 0 0 20px;
+  font-size: 12px;
+  line-height: 2;
+  color: var(--ink-2);
+}
+
+.codex-card.is-locked > p {
+  color: var(--grey);
+}
+
+.codex-card dl {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.codex-card dl div {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  padding: 5px 0;
+}
+
+.codex-card dt {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--grey);
+}
+
+.codex-card dd {
+  margin: 0;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.codex-enter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: auto;
+  padding: 12px 2px 8px;
+  border: 0;
+  border-top: 1px solid var(--ink);
+  background: transparent;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 15px;
+  letter-spacing: 0.16em;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.codex-enter i {
+  font-style: normal;
+  color: var(--cinnabar);
+}
+
+.codex-enter:hover {
+  color: var(--cinnabar);
+}
+
+.codex-locked {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--grey);
+}
+
+.codex-note {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 20px;
+  max-width: 780px;
+  margin-top: 30px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink);
+}
+
+.codex-note span {
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--grey);
+}
+
+.codex-note p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.9;
+  color: var(--ink-2);
+}
+
+/* ---------- 页脚 / 游戏导航 ---------- */
+
+.game-foot {
+  margin-top: 40px;
+  margin-bottom: 10px;
+}
+
+.game-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 50;
+  display: flex;
+  background: var(--paper-2);
+  border: 1px solid var(--ink);
+  transform: translateX(-50%);
+}
+
+.game-nav-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  width: 104px;
+  height: 60px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 160ms ease-out, color 160ms ease-out;
+}
+
+.game-nav-item:last-child {
+  border-right: 0;
+}
+
+.game-nav-item i {
+  font-style: normal;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 19px;
+  line-height: 1.1;
+}
+
+.game-nav-item span {
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+}
+
+.game-nav-item em {
+  position: absolute;
+  top: 4px;
+  right: 7px;
+  min-width: 15px;
+  padding: 0 2px;
+  background: var(--cinnabar);
+  color: var(--paper-2);
+  font-style: normal;
+  font-size: 8px;
+  line-height: 15px;
+  text-align: center;
+}
+
+.game-nav-item:hover {
+  color: var(--cinnabar);
+}
+
+.game-nav-item.is-active {
+  background: var(--ink);
+  color: var(--paper-2);
+}
+
+.game-nav-item.is-active i {
+  color: var(--cinnabar);
+}
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 1080px) {
+  .game-shell {
+    padding: 0 24px 126px;
+  }
+
+  .game-hud .hud-cell--quiet {
+    display: none;
+  }
+
+  .home-scene {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 32px;
+    padding: 50px 0 36px;
+  }
+
+  .home-copy h1 {
+    font-size: clamp(54px, 7vw, 82px);
+  }
+
+  .home-stamp {
+    right: 0;
+    top: 92px;
+    width: 54px;
+    min-height: 92px;
+    font-size: 12px;
+  }
+
+  .method-grid,
+  .codex-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .method-card {
+    min-height: 88px;
+  }
+
+  .codex-card {
+    min-height: 0;
+  }
+
+  .archive-row {
+    grid-template-columns: 36px minmax(0, 1fr) 200px 22px;
+  }
+
+  .archive-body {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .archive-aside {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+
+  .archive-note {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .game-shell {
+    padding: 0 16px 118px;
+  }
+
+  .game-topbar {
+    height: 62px;
+  }
+
+  .game-hud .hud-cell {
+    display: none;
+  }
+
+  .game-hud a {
+    margin-left: 0;
+  }
+
+  .home-scene {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    min-height: 0;
+    padding: 44px 0 30px;
+  }
+
+  .home-copy {
+    align-self: start;
+  }
+
+  .home-copy h1 {
+    margin: 18px 0 16px;
+    font-size: clamp(44px, 12vw, 58px);
+    letter-spacing: 0.06em;
+  }
+
+  .home-lede {
+    max-width: 100%;
+    font-size: 13px;
+  }
+
+  .home-actions {
+    margin-top: 24px;
+    gap: 18px;
+  }
+
+  .seal-btn {
+    padding: 12px 18px;
+    gap: 18px;
+    font-size: 16px;
+    letter-spacing: 0.16em;
+  }
+
+  .home-stamp {
+    display: none;
+  }
+
+  .home-aside {
+    padding-bottom: 0;
+  }
+
+  .quest-grid dd {
+    white-space: normal;
+  }
+
+  .home-methods {
+    padding-top: 24px;
+  }
+
+  .method-card {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    min-height: 78px;
+    padding: 12px 14px;
+  }
+
+  .method-glyph {
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
+  }
+
+  .method-text b {
+    font-size: 19px;
+  }
+
+  .scene-bar {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding-top: 16px;
+  }
+
+  .scene-steps {
+    width: 100%;
+    margin-left: 0;
+    padding-bottom: 0;
+  }
+
+  .scene-steps i {
+    width: 16px;
+  }
+
+  .scene-heading h1 {
+    font-size: 26px;
+  }
+
+  .archive-body {
+    max-width: 100%;
+  }
+
+  .archive-row {
+    grid-template-columns: 30px minmax(0, 1fr) 20px;
+    gap: 12px;
+  }
+
+  .archive-aside {
+    grid-template-columns: 1fr;
+  }
+
+  .archive-meta {
+    display: none;
+  }
+
+  .archive-main h2 {
+    font-size: 21px;
+  }
+
+  .archive-empty {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 22px;
+    margin: 26px 0;
+    padding: 26px 22px;
+  }
+
+  .archive-empty-seal {
+    width: 70px;
+    height: 70px;
+    font-size: 25px;
+  }
+
+  .codex-card {
+    padding: 18px;
+  }
+
+  .codex-card h2 {
+    font-size: 32px;
+  }
+
+  .codex-note {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .game-nav {
+    bottom: 10px;
+  }
+
+  .game-nav-item {
+    width: 76px;
+    height: 54px;
+  }
+
+  .game-nav-item i {
+    font-size: 17px;
+  }
+
+  .game-nav-item span {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+
+  .game-foot {
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-sun,
+  .ink-birds,
+  .ink-cloud,
+  .home-view,
+  .scene-view,
+  .archive-view,
+  .codex-view {
+    animation: none;
+  }
+}

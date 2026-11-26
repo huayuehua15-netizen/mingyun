@@ -16,7 +16,7 @@
 | `paipan/liuyao` 六爻（八宫、纳甲、六亲、六神、世应、伏神、旺衰、动变） | ✅ v0.1.0 |
 | `apps/api` 单二进制（`serve` / `calendar` / `paipan`） | ✅ |
 | HTTP API：排盘、盘面详情、列表、历法、能力清单、SSE 解读 | ✅ |
-| `apps/web` 纸本朱印六爻界面、一爻一摇动画、逐爻生长 | ✅ |
+| `apps/web` 游戏化四场景（山门 / 案上起卦 / 藏卦例 / 三术）、一爻一摇、逐爻生长、SSE 解读 | ✅ |
 | AI 解读（OpenAI 兼容 SSE、四段输出、离线兜底） | ✅ |
 | Docker Compose（API + Nginx 静态站） | ✅ |
 | `paipan/daliuren` 大六壬 / `paipan/ziwei` 紫微斗数 | ⏳ |
@@ -26,7 +26,27 @@
 
 ## 页面
 
-未占态与逐爻生长：
+界面按 PC 游戏的方式分成四幕：山门、案上起卦、藏卦例、三术。底部导航固定在手边，纸本、朱砂、水墨山景与盘面保持同一套视觉；没有渐变、发光和 3D。
+
+山门：
+
+<img src="docs/preview/final-home.png" width="760" alt="山门">
+
+案上起卦：问事、铜钱六摇、盘面、四段解读：
+
+<img src="docs/preview/final-cast.png" width="760" alt="案上起卦与盘面">
+
+藏卦例：只存在浏览器 localStorage，点一卦可以翻回原盘：
+
+<img src="docs/preview/final-archive.png" width="760" alt="藏卦例">
+
+三术：六爻已开放，大六壬、紫微斗数按卷推进：
+
+<img src="docs/preview/final-codex.png" width="760" alt="三术">
+
+> 截图里的解读是未配置模型时的离线摘要：四段结构保留，只列盘面事实、不判吉凶。配置模型后会走同一条 SSE 链路，改为四段流式解读。
+
+早期纸本界面的未占态与逐爻生长：
 
 <img src="docs/preview/home.png" width="720" alt="未占态">
 <img src="docs/preview/partial.png" width="720" alt="逐爻生长">
@@ -35,12 +55,12 @@
 
 <img src="docs/preview/toss.gif" width="720" alt="抛币动画">
 
-完整盘面与解读面板：
+完整盘面与四段解读示例：
 
 <img src="docs/preview/result.png" width="720" alt="完整盘面 · 离线摘要">
 <img src="docs/preview/result-ai-demo.png" width="720" alt="四段解读 · 本地 mock 模型">
 
-> `result.png` 是未配置模型时的离线态：四段结构保留，只列事实、不判吉凶。`result-ai-demo.png` 是本地 mock 模型跑通的流式四段演示，不代表具体模型的固定文风。
+> `result-ai-demo.png` 是本地 mock 模型跑通的流式四段演示，不代表具体模型的固定文风。
 
 ## 快速开始
 
