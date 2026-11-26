@@ -147,7 +147,14 @@ MINGYUN_AI_MODEL=qwen-plus
 # 本地 Ollama（Docker 里访问宿主机）
 MINGYUN_AI_BASE_URL=http://host.docker.internal:11434/v1
 MINGYUN_AI_MODEL=qwen2.5:7b
+
+# 商汤日日新 Token Plan（OpenAI 兼容）
+MINGYUN_AI_BASE_URL=https://token.sensenova.cn/v1
+MINGYUN_AI_MODEL=sensenova-6.8-flash
+MINGYUN_AI_TEMPERATURE=0.3
 ```
+
+Token Plan 的 `kimi-k3` / `glm-5.3` 在当前免费额度下容易触发 TPM/RPM 429；本项目实测用 `sensenova-6.8-flash` 跑通了解读与盘面校验，因此默认示例选它。
 
 > 公开部署且配置了付费 Key 时，请在 Nginx 或网关上加限流/鉴权。当前 API 没有账号体系，解读接口是开放的。
 
