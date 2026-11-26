@@ -31,29 +31,43 @@ const termLine = computed(() => {
 const methods = [
   {
     key: 'liuyao',
+    volume: '卷一',
+    roman: '壹',
     glyph: '六',
     name: '六爻',
     desc: '铜钱 · 纳甲 · 动变',
-    state: '已开放',
-    open: true
+    state: '已开卷',
+    open: true,
+    steps: ['问事', '摇卦', '解卦'],
+    action: '入卷'
   },
   {
     key: 'daliuren',
+    volume: '卷二',
+    roman: '贰',
     glyph: '壬',
     name: '大六壬',
     desc: '课体 · 三传 · 十二天将',
-    state: '筹备',
-    open: false
+    state: '待启',
+    open: false,
+    steps: ['起课', '传课', '断课'],
+    action: '未启'
   },
   {
     key: 'ziwei',
+    volume: '卷三',
+    roman: '叁',
     glyph: '紫',
     name: '紫微斗数',
     desc: '星曜 · 十二宫 · 四化',
-    state: '筹备',
-    open: false
+    state: '待启',
+    open: false,
+    steps: ['安星', '布宫', '读盘'],
+    action: '未启'
   }
 ]
+
+const openCount = methods.filter((method) => method.open).length
 
 function enterMethod(open: boolean) {
   if (open) emit('start')
@@ -119,28 +133,53 @@ function enterMethod(open: boolean) {
       </aside>
     </div>
 
-    <section class="home-methods">
+    <section class="home-route">
       <header class="section-head">
-        <span>三术</span>
+        <span>行卷</span>
         <i></i>
-        <em>目前只开放六爻</em>
+        <em>一卷六爻，二卷大六壬，三卷紫微斗数</em>
+        <b class="route-progress">{{ openCount }}<span>/ {{ methods.length }}</span></b>
       </header>
-      <div class="method-grid">
+
+      <div class="route-track">
+        <div class="route-line" aria-hidden="true"></div>
         <button
           v-for="m in methods"
           :key="m.key"
-          class="method-card"
+          class="route-stop"
           :class="{ 'is-open': m.open, 'is-locked': !m.open }"
           :disabled="!m.open"
           @click="enterMethod(m.open)"
         >
-          <span class="method-glyph">{{ m.glyph }}</span>
-          <span class="method-text">
-            <b>{{ m.name }}</b>
-            <em>{{ m.desc }}</em>
-          </span>
-          <span class="method-state">{{ m.state }}</span>
+          <span class="route-node"><i>{{ m.roman }}</i></span>
+          <div class="route-card">
+            <header class="route-card-head">
+              <span class="route-volume">{{ m.volume }}</span>
+              <em>{{ m.state }}</em>
+            </header>
+            <div class="route-title">
+              <span class="route-glyph">{{ m.glyph }}</span>
+              <div>
+                <h2>{{ m.name }}</h2>
+                <p>{{ m.desc }}</p>
+              </div>
+            </div>
+            <ul class="route-steps">
+              <li v-for="(step, i) in m.steps" :key="step">
+                <span>{{ String(i + 1).padStart(2, '0') }}</span>{{ step }}
+              </li>
+            </ul>
+            <footer class="route-card-foot">
+              <span>{{ m.action }}</span>
+              <i>{{ m.open ? '→' : '·' }}</i>
+            </footer>
+          </div>
         </button>
+      </div>
+
+      <div class="route-foot">
+        <button class="text-btn" @click="$emit('archive')">翻看卦例 {{ archiveCount }}</button>
+        <button class="text-btn" @click="$emit('codex')">展开三术</button>
       </div>
     </section>
   </section>
