@@ -904,7 +904,7 @@ function formatTime(iso: string): string {
           解读未完成，盘面事实仍以引擎计算为准。可稍后重试，或检查服务端模型配置。
         </template>
         <template v-else-if="reading.mode === 'ai'">
-          以上解读由 {{ reading.model }} 生成，仅供传统文化学习与娱乐参考；盘面事实以引擎计算为准。
+          以上解读由 {{ reading.model }} 生成，并已通过盘面事实校验；仅供传统文化学习与娱乐参考，盘面事实以引擎计算为准。
         </template>
         <template v-else-if="reading.mode === 'offline'">
           以上为离线盘面摘要，只列事实，不含吉凶判断。配置模型后可获得完整四段解读。

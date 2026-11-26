@@ -146,13 +146,39 @@ func (s *Server) handleInterpret(w http.ResponseWriter, r *http.Request) {
 	}
 
 	messages := ai.BuildMessages(rec.Chart, question, style)
+
+	// 先缓冲完整输出并做盘面事实校验，避免模型编造的卦名、动爻或干支
+	// 已经流到浏览器之后才被发现。校验通过后再按原 SSE 协议分片下发。
+	var raw strings.Builder
 	result, err := s.aiClient.Stream(ctx, messages, maxTokens, func(text string) error {
-		return writeSSE(w, flusher, "delta", interpretDelta{Text: text})
+		raw.WriteString(text)
+		return nil
 	})
 	if err != nil {
 		log.Printf("interpret chart=%s error=%v", rec.ChartID, err)
 		_ = writeSSE(w, flusher, "error", interpretError{Code: 30001, Message: interpretErrorText(err)})
 		return
+	}
+
+	if issues := ai.AuditReading(raw.String(), rec.Chart); len(issues) > 0 {
+		log.Printf("interpret chart=%s audit rejected: %s", rec.ChartID, strings.Join(issues, "；"))
+		_ = writeSSE(w, flusher, "error", interpretError{
+			Code:    30002,
+			Message: "解读未通过盘面事实校验，已拦截。请重试，或稍后使用离线摘要。",
+		})
+		return
+	}
+
+	text := raw.String()
+	for _, chunk := range chunkRunes(text, 28) {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(18 * time.Millisecond):
+		}
+		if err := writeSSE(w, flusher, "delta", interpretDelta{Text: chunk}); err != nil {
+			return
+		}
 	}
 
 	if result.Usage.PromptTokens > 0 || result.Usage.CompletionTokens > 0 {

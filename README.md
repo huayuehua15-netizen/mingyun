@@ -154,9 +154,10 @@ MINGYUN_AI_MODEL=qwen2.5:7b
 ## 解读是怎么做的
 
 1. Go 引擎只产出 `facts`：卦名、宫位、世应、月建日辰、旬空、六爻纳甲六亲六神动静、动爻变爻、伏神。AI 不排盘、不补爻。
-2. 提示词把 facts 原样列出，把用户问题包在 `<<<USER_QUESTION>>>` 里，声明为数据而非指令，并固定四段输出：`盘面要点 / 断语 / 应期与走向 / 建议`。
+2. 提示词把 facts 原样列出，把用户问题包在 `<<<USER_QUESTION>>>` 里，声明为数据而非指令，并固定四段输出：`盘面要点 / 断语 / 应期与走向 / 建议`。提示词在 `apps/api/internal/ai/prompt.go`，事实清单由 `paipan/liuyao/facts.go` 生成；盘面计算与解读是两段分离的职责。
 3. `POST /api/v1/charts/{id}/interpret` 用 SSE 返回 `meta / delta / usage / done / error`；前端用 `fetch` + `ReadableStream` 解析，逐字渲染。
-4. 没有模型时，同一路由返回离线摘要：四段结构保留，但明确不判吉凶、不推应期。
+4. 在线模型先完整生成，再由 `AuditReading` 做盘面事实校验：四段标题、绝对化承诺、事实之外的卦名/干支/神煞、静爻说成动爻、六亲和世应安错爻位，任一项不过就整段拦截，不把编造内容流到浏览器。校验通过后才分片下发。
+5. 没有模型时，同一路由返回离线摘要：四段结构保留，但明确不判吉凶、不推应期。
 
 ```
 curl -N -X POST "localhost:8080/api/v1/charts/{chart_id}/interpret" \
