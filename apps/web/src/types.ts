@@ -76,6 +76,15 @@ export interface UseShenCandidate {
   fu_positions?: number[]
 }
 
+export interface SurnameHint {
+  position: number
+  zhi: string
+  animal: string
+  surname?: string
+  is_shi?: boolean
+  is_ying?: boolean
+}
+
 export interface UseShenPlan {
   topic: string
   topic_label: string
@@ -86,6 +95,7 @@ export interface UseShenPlan {
   taboo?: string[]
   rationale: string
   candidates?: UseShenCandidate[]
+  surname_hints?: SurnameHint[]
 }
 
 export interface LiuYaoPayload {

@@ -83,6 +83,17 @@ func buildFacts(p Payload) []schema.Fact {
 			Anchor: "/payload/use_shen",
 			Weight: schema.WeightCore,
 		})
+		if p.UseShen.Topic == TopicSurname {
+			if value := p.UseShen.SurnameFactValue(); value != "" {
+				facts = append(facts, schema.Fact{
+					Key:    "liuyao.surname",
+					Label:  "姓氏候选",
+					Value:  value,
+					Anchor: "/payload/use_shen/surname_hints",
+					Weight: schema.WeightCore,
+				})
+			}
+		}
 	}
 
 	for i, l := range p.Lines {

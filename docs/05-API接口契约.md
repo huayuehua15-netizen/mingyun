@@ -90,7 +90,7 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
 |---|---|---|---|
 | mode | enum | 是 | coin / time / manual |
 | question | string | 否 | ≤ 200 字 |
-| topic | enum | 否 | 显式问事类别：`exam` / `wealth` / `career` / `relationship` / `health` / `travel` / `lost` / `legal` / `family` / `general`；为空时按问题关键词分类 |
+| topic | enum | 否 | 显式问事类别：`exam` / `wealth` / `career` / `relationship` / `health` / `travel` / `lost` / `legal` / `family` / `surname` / `general`；为空时按问题关键词分类 |
 | gender | enum | 否 | `male` / `female`；感情类用于定取妻财或官鬼，未填则并列两种取法并标 `needs_gender` |
 | at | string | 否 | RFC3339；缺省为服务端当前时刻（按 tz 解释）。**装卦需要月建日辰，所以 manual 也必须有时间来源。** |
 | tz | string | 否 | 默认 `Asia/Shanghai` |
@@ -109,7 +109,7 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
 
 **紫微请求字段**：`gender`、`calendar_type`、`birth_date`、`birth_time`、`is_leap_month`、`leap_month_policy`、`tz`、`lon`、`question`。
 
-**响应**：`chart_id`、`method`、`engine_version`、`question`、`calendar`、`school`、`payload`、`facts`（服务端默认只回 `weight=core` 的 facts，完整清单 `GET /charts/{id}` 可取）、`warnings`、`entropy`（如为服务端摇卦）、`created_at`。六爻 `payload.use_shen` 返回规则引擎的取用神结果，含 `topic`、`topic_label`、`rule_id`、`confidence`、`primary`、`secondary`、`taboo`、`rationale`、`candidates`；`facts` 中同步给出「问事类别」与「用神」两条 core 事实。
+**响应**：`chart_id`、`method`、`engine_version`、`question`、`calendar`、`school`、`payload`、`facts`（服务端默认只回 `weight=core` 的 facts，完整清单 `GET /charts/{id}` 可取）、`warnings`、`entropy`（如为服务端摇卦）、`created_at`。六爻 `payload.use_shen` 返回规则引擎的取用神结果，含 `topic`、`topic_label`、`rule_id`、`confidence`、`primary`、`secondary`、`taboo`、`rationale`、`candidates`；测姓类额外含 `surname_hints`。`facts` 中同步给出「问事类别」「用神」两条 core 事实，测姓类再加「姓氏候选」。
 
 | 方法 | 路径 | 说明 |
 |---|---|---|

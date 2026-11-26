@@ -122,3 +122,43 @@ func TestUseShenCanBeHiddenAsFuShen(t *testing.T) {
 		t.Fatalf("有伏神时不应同时说用神不现：%s", fact)
 	}
 }
+
+func surnameLines() []LinePayload {
+	return []LinePayload{
+		{Position: 1, LiuQin: "子孙", Zhi: "卯", Ying: true},
+		{Position: 2, LiuQin: "官鬼", Zhi: "丑"},
+		{Position: 3, LiuQin: "兄弟", Zhi: "亥"},
+		{Position: 4, LiuQin: "官鬼", Zhi: "丑", Shi: true},
+		{Position: 5, LiuQin: "兄弟", Zhi: "亥"},
+		{Position: 6, LiuQin: "父母", Zhi: "酉"},
+	}
+}
+
+func TestSurnameUseShenUsesShiForSelf(t *testing.T) {
+	plan := SelectUseShen("测一下我的姓氏，提示在生肖中", "", "", surnameLines(), nil)
+	if plan.Topic != TopicSurname || plan.RuleID != "YS-10" {
+		t.Fatalf("topic/rule = %s/%s，期望 surname/YS-10", plan.Topic, plan.RuleID)
+	}
+	if len(plan.Primary) != 1 || plan.Primary[0] != "世爻" {
+		t.Fatalf("自测姓氏应以世爻为主，实际 %v", plan.Primary)
+	}
+	if len(plan.SurnameHints) == 0 {
+		t.Fatal("测姓类应给出姓氏取象候选")
+	}
+	fact := plan.SurnameFactValue()
+	for _, want := range []string{"牛", "不能当姓"} {
+		if !strings.Contains(fact, want) {
+			t.Fatalf("姓氏候选缺少 %q：%s", want, fact)
+		}
+	}
+	if !strings.Contains(fact, "四爻") {
+		t.Fatalf("姓氏候选应落在主用神世爻四爻：%s", fact)
+	}
+}
+
+func TestSurnameUseShenUsesYingForOther(t *testing.T) {
+	plan := SelectUseShen("测他的姓氏", "", "", surnameLines(), nil)
+	if len(plan.Primary) != 1 || plan.Primary[0] != "应爻" {
+		t.Fatalf("问他人姓氏应以应爻为主，实际 %v", plan.Primary)
+	}
+}

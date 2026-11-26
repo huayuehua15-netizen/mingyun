@@ -205,6 +205,39 @@ func TestCastManual(t *testing.T) {
 	}
 }
 
+func TestCastSurnameTopic(t *testing.T) {
+	ts := newTestEnv(t)
+	body := `{"mode":"manual","question":"测一下我的姓氏，提示在生肖中","at":"2026-11-26T21:55:00+08:00","lines":["少阳","少阴","少阳","少阴","少阴","少阴"]}`
+	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/liuyao/cast", body, http.StatusOK)
+	if env.Code != 0 {
+		t.Fatalf("code = %d, message = %s", env.Code, env.Message)
+	}
+	var view chartView
+	if err := json.Unmarshal(env.Data, &view); err != nil {
+		t.Fatal(err)
+	}
+	payload := view.Payload.(map[string]any)
+	useShen, ok := payload["use_shen"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload 缺少 use_shen：%T", payload["use_shen"])
+	}
+	if useShen["topic"] != "surname" || useShen["rule_id"] != "YS-10" {
+		t.Errorf("测姓规则 = %v / %v", useShen["topic"], useShen["rule_id"])
+	}
+	if useShen["primary"].([]any)[0] != "世爻" {
+		t.Errorf("自测姓氏应以世爻为主：%v", useShen["primary"])
+	}
+	var surnameFact string
+	for _, f := range view.Facts {
+		if f.Label == "姓氏候选" {
+			surnameFact = f.Value
+		}
+	}
+	if !strings.Contains(surnameFact, "牛") || strings.Contains(surnameFact, "姓兔") {
+		t.Errorf("姓氏候选应只落真实姓氏牛，实际为 %q", surnameFact)
+	}
+}
+
 func TestCastCoinServerToss(t *testing.T) {
 	ts := newTestEnv(t)
 	body := `{"mode":"coin","question":"求财","at":"2026-11-25T14:30:00+08:00"}`

@@ -71,6 +71,7 @@ func AuditReading(text string, chart schema.Chart) []string {
 	checkLineLiuQin(text, lines, add)
 	checkShiYing(text, factsText, add)
 	checkUseShen(text, chart.Facts, add)
+	checkSurnameAnswer(text, chart.Facts, add)
 	checkShenSha(text, factsText, add)
 
 	return issues
@@ -348,6 +349,144 @@ func checkUseShen(text string, facts []schema.Fact, add func(string, ...any)) {
 		}
 		if !allowed[claim.name] {
 			add("用神应为%s，输出却写成%s", prefix, claim.name)
+		}
+	}
+}
+
+var zodiacAnimals = map[string]bool{
+	"鼠": true, "牛": true, "虎": true, "兔": true, "龙": true, "蛇": true,
+	"马": true, "羊": true, "猴": true, "鸡": true, "狗": true, "猪": true,
+}
+
+func checkSurnameAnswer(text string, facts []schema.Fact, add func(string, ...any)) {
+	allowed, ok := surnameCandidates(facts)
+	if !ok {
+		return
+	}
+	relevant := make(map[string]bool, len(allowed)+len(zodiacAnimals))
+	for name := range allowed {
+		relevant[name] = true
+	}
+	for name := range zodiacAnimals {
+		relevant[name] = true
+	}
+
+	claims := collectSurnameClaims(text, relevant)
+	hasAllowed := false
+	for _, name := range claims {
+		if allowed[name] {
+			hasAllowed = true
+			continue
+		}
+		if zodiacAnimals[name] {
+			add("把生肖动物直接当姓氏：%s", name)
+		}
+	}
+	if !hasAllowed {
+		add("测姓类解读没有给出真实姓氏候选")
+	}
+}
+
+func surnameCandidates(facts []schema.Fact) (map[string]bool, bool) {
+	for _, f := range facts {
+		if f.Label != "姓氏候选" {
+			continue
+		}
+		value := f.Value
+		if cut := strings.Index(value, "；"); cut >= 0 {
+			value = value[:cut]
+		}
+		value = strings.TrimPrefix(value, "常见姓氏候选：")
+		allowed := make(map[string]bool)
+		for _, token := range strings.Split(value, "、") {
+			token = strings.TrimSpace(token)
+			if cut := strings.Index(token, "（"); cut >= 0 {
+				token = token[:cut]
+			}
+			if token != "" {
+				allowed[token] = true
+			}
+		}
+		return allowed, true
+	}
+	return nil, false
+}
+
+// collectSurnameClaims 只收集明确的“姓 X / X 姓 / 答案 X”句式；仅把候选姓氏与
+// 十二生肖字纳入，避免把“百姓的”之类普通文本误判成姓氏声明。
+func collectSurnameClaims(text string, relevant map[string]bool) []string {
+	runes := []rune(text)
+	var out []string
+	addToken := func(start int) {
+		j := start
+		for j < len(runes) && (runes[j] == ' ' || runes[j] == '\t' || runes[j] == '\n') {
+			j++
+		}
+		j = skipClaimWords(runes, j)
+		if j < len(runes) && relevant[string(runes[j])] {
+			out = append(out, string(runes[j]))
+		}
+	}
+	addBefore := func(end int) {
+		j := end - 1
+		for j >= 0 && (runes[j] == ' ' || runes[j] == '\t' || runes[j] == '\n' || strings.ContainsRune("「」“”‘’\"'", runes[j])) {
+			j--
+		}
+		if j >= 0 && relevant[string(runes[j])] {
+			out = append(out, string(runes[j]))
+		}
+	}
+	for i := 0; i < len(runes); i++ {
+		if runes[i] != '姓' {
+			continue
+		}
+		j := i + 1
+		if j < len(runes) && runes[j] == '氏' {
+			j++
+		}
+		addToken(j)
+		addBefore(i)
+	}
+	for i := 0; i+1 < len(runes); i++ {
+		if string(runes[i:i+2]) == "为姓" {
+			addBefore(i)
+		}
+		if string(runes[i:i+2]) != "答案" && string(runes[i:i+2]) != "谜底" && string(runes[i:i+2]) != "结论" {
+			continue
+		}
+		addToken(i + 2)
+	}
+	return out
+}
+
+func skipClaimWords(runes []rune, j int) int {
+	words := [][]rune{
+		{'可', '能'}, {'应', '该'}, {'大', '概'}, {'约'}, {'就'}, {'即'},
+		{'是'}, {'为'}, {'叫'}, {'：'}, {':'}, {'候', '选'},
+		{'指', '向'}, {'落', '在'}, {'对', '应'}, {'取'}, {'以'},
+		{'「'}, {'」'}, {'“'}, {'”'}, {'‘'}, {'’'}, {'"'}, {'\''},
+	}
+	for {
+		matched := false
+		for _, word := range words {
+			if j+len(word) > len(runes) {
+				continue
+			}
+			same := true
+			for k := range word {
+				if runes[j+k] != word[k] {
+					same = false
+					break
+				}
+			}
+			if same {
+				j += len(word)
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return j
 		}
 	}
 }

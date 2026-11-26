@@ -197,3 +197,102 @@ func TestAuditReadingAllowsDualGenderUseShen(t *testing.T) {
 		t.Fatalf("并列说明两种取法不应被误拦: %v", issues)
 	}
 }
+
+func surnameFixture() schema.Chart {
+	chart := auditFixture()
+	chart.Facts = append(chart.Facts,
+		schema.Fact{
+			Key:    "liuyao.use_shen",
+			Label:  "用神",
+			Value:  "主用神：世爻；次用神：应爻；取法：测自身姓氏以世爻为主（规则 YS-10）",
+			Weight: schema.WeightCore,
+		},
+		schema.Fact{
+			Key:    "liuyao.surname",
+			Label:  "姓氏候选",
+			Value:  "常见姓氏候选：牛（四爻·丑牛）、朱（三爻·亥猪）、姬（上爻·酉鸡）；非姓线索：兔（初爻·卯兔），只能提示生肖，不能当姓",
+			Weight: schema.WeightCore,
+		},
+	)
+	return chart
+}
+
+func TestAuditReadingAllowsRealSurname(t *testing.T) {
+	chart := surnameFixture()
+	text := `## 盘面要点
+本卦泽火革，变卦泽雷随；世在四爻，应在初爻。
+
+## 断语
+你的姓氏候选是牛，对应世爻四爻丑牛，丑牛是真实姓氏；应爻卯兔只作生肖线索，不能直接当姓。
+
+## 应期与走向
+本月内观察。
+
+## 建议
+先核对姓氏候选，再结合实际信息判断。`
+	if issues := AuditReading(text, chart); len(issues) > 0 {
+		t.Fatalf("给出真实姓氏不应被拦截: %v", issues)
+	}
+}
+
+func TestAuditReadingAllowsSurnamePointing(t *testing.T) {
+	chart := surnameFixture()
+	text := `## 盘面要点
+测自身姓氏，主用神为世爻，落在四爻丑牛；应爻初爻卯兔旬空。
+
+## 断语
+你的姓氏指向「牛」。因为测自身姓氏以世爻为主，世爻四爻丑土对应生肖牛，姓氏候选中的牛姓正落在此爻。应爻卯兔只作线索，不能直接当姓。
+
+## 应期与走向
+姓氏为既定之事，不涉应期吉凶。
+
+## 建议
+以牛为姓自行核对；若不符，可补充线索再起一卦。`
+	if issues := AuditReading(text, chart); len(issues) > 0 {
+		t.Fatalf("姓氏指向真实候选不应被拦截: %v", issues)
+	}
+}
+
+func TestAuditReadingRejectsAnimalAsSurname(t *testing.T) {
+	chart := surnameFixture()
+	text := `## 盘面要点
+本卦泽火革，变卦泽雷随；世在四爻，应在初爻。
+
+## 断语
+你的姓氏是兔，因为应爻初爻己卯木就是卯兔。
+
+## 应期与走向
+本月内观察。
+
+## 建议
+先观察。`
+	issues := AuditReading(text, chart)
+	if len(issues) == 0 {
+		t.Fatal("把生肖动物当姓氏，应拦截")
+	}
+	if joined := strings.Join(issues, "；"); !strings.Contains(joined, "兔") {
+		t.Fatalf("拦截原因应指出兔不是姓氏候选: %s", joined)
+	}
+}
+
+func TestAuditReadingRequiresSurnameCandidate(t *testing.T) {
+	chart := surnameFixture()
+	text := `## 盘面要点
+本卦泽火革，变卦泽雷随；世在四爻，应在初爻。
+
+## 断语
+应爻卯兔是生肖线索，但不直接等于姓氏。
+
+## 应期与走向
+本月内观察。
+
+## 建议
+先观察。`
+	issues := AuditReading(text, chart)
+	if len(issues) == 0 {
+		t.Fatal("测姓类没有给出真实姓氏候选，应拦截")
+	}
+	if joined := strings.Join(issues, "；"); !strings.Contains(joined, "真实姓氏") {
+		t.Fatalf("拦截原因应指出缺少真实姓氏: %s", joined)
+	}
+}
