@@ -15,13 +15,13 @@ import (
 
 // Record 一条盘面记录。
 type Record struct {
-	ChartID   string
-	Method    schema.Method
-	Question  string
-	Summary   string
-	Chart     schema.Chart
-	CreatedAt time.Time
-	Entropy   *entropy.Toss
+	ChartID   string        `json:"chart_id"`
+	Method    schema.Method `json:"method"`
+	Question  string        `json:"question,omitempty"`
+	Summary   string        `json:"summary,omitempty"`
+	Chart     schema.Chart  `json:"chart"`
+	CreatedAt time.Time     `json:"created_at"`
+	Entropy   *entropy.Toss `json:"entropy,omitempty"`
 }
 
 // ListOptions 列表查询参数。
@@ -103,4 +103,31 @@ func (m *Memory) Len() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return len(m.byID)
+}
+
+// snapshot 按创建顺序返回一份记录切片，供文件存储落盘。
+func (m *Memory) snapshot() []Record {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]Record, 0, len(m.order))
+	for _, id := range m.order {
+		out = append(out, m.byID[id])
+	}
+	return out
+}
+
+// remove 在落盘失败时回滚刚写入的记录。
+func (m *Memory) remove(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.byID[id]; !ok {
+		return
+	}
+	delete(m.byID, id)
+	for i, v := range m.order {
+		if v == id {
+			m.order = append(m.order[:i], m.order[i+1:]...)
+			break
+		}
+	}
 }

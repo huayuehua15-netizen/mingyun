@@ -2748,3 +2748,626 @@
     width: 100%;
   }
 }
+/* ---------- 模型设置 ---------- */
+
+.settings-status {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-left: auto;
+  padding-bottom: 5px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--grey);
+}
+
+.settings-status i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.settings-status b {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 0.16em;
+  color: var(--ink-2);
+}
+
+.settings-status.is-online i {
+  border-color: var(--cinnabar);
+  background: var(--cinnabar);
+}
+
+.settings-status.is-online b {
+  color: var(--cinnabar);
+}
+
+.settings-status small {
+  font-size: 10px;
+  color: var(--grey);
+}
+
+.settings-body {
+  max-width: 1060px;
+}
+
+.settings-view .scene-body {
+  padding-bottom: 118px;
+}
+
+.settings-current {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.settings-seal {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid var(--line);
+  color: var(--grey);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+}
+
+.settings-seal b {
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.settings-seal span {
+  margin-top: 4px;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+}
+
+.settings-seal.is-online {
+  border-color: var(--cinnabar);
+  color: var(--cinnabar);
+}
+
+.settings-kicker {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: var(--cinnabar);
+}
+
+.settings-current-copy h2 {
+  margin: 4px 0 6px;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+}
+
+.settings-current-copy p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.settings-current-copy .settings-endpoint-line {
+  margin-top: 5px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--grey);
+  word-break: break-all;
+}
+
+.settings-current-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(72px, auto));
+  gap: 10px 22px;
+  margin: 0;
+  padding-left: 22px;
+  border-left: 1px solid var(--line);
+}
+
+.settings-current-facts dt {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--grey);
+}
+
+.settings-current-facts dd {
+  margin: 3px 0 0;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.settings-loading {
+  margin: 24px 0 0;
+  font-size: 12px;
+  color: var(--grey);
+  letter-spacing: 0.08em;
+}
+
+.settings-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-section-head {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 18px;
+  margin-bottom: 16px;
+}
+
+.settings-section-head span {
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  color: var(--cinnabar);
+}
+
+.settings-section-head h2 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+}
+
+.settings-section-head p {
+  grid-column: 2;
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--grey);
+}
+
+.provider-group {
+  margin-top: 15px;
+}
+
+.provider-group h3 {
+  margin: 0 0 8px;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: var(--grey);
+}
+
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.provider-card {
+  position: relative;
+  min-height: 82px;
+  padding: 12px 14px 10px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.provider-card b {
+  display: block;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.provider-card small {
+  display: block;
+  margin-top: 5px;
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--grey);
+}
+
+.provider-card em {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--cinnabar);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-card:hover {
+  background: var(--paper);
+}
+
+.provider-card.is-active {
+  background: var(--paper);
+  outline: 1px solid var(--cinnabar);
+  outline-offset: -1px;
+}
+
+.provider-card.is-active::after {
+  position: absolute;
+  top: 10px;
+  right: 11px;
+  content: "选";
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--cinnabar);
+}
+
+.provider-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.settings-form {
+  max-width: 760px;
+}
+
+.settings-field {
+  display: block;
+  margin-bottom: 15px;
+}
+
+.settings-field > span {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--ink-2);
+}
+
+.settings-field em {
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--grey);
+}
+
+.settings-field input,
+.settings-endpoint input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.settings-field input:focus,
+.settings-endpoint input:focus {
+  border-color: var(--cinnabar);
+}
+
+.settings-field input:disabled,
+.settings-endpoint input:disabled {
+  color: var(--grey);
+  background: var(--paper);
+}
+
+.settings-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px dashed var(--line);
+  border-bottom: 1px dashed var(--line);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+
+.settings-endpoint > span {
+  flex: 0 0 72px;
+}
+
+.settings-endpoint code {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+  background: transparent;
+  color: var(--grey);
+  font-family: inherit;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-endpoint input {
+  flex: 1;
+}
+
+.settings-endpoint .text-btn {
+  flex: none;
+}
+
+.settings-more {
+  margin-top: 10px;
+  padding: 0 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--grey);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.settings-more:hover {
+  color: var(--cinnabar);
+}
+
+.settings-advanced {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 15px;
+}
+
+.settings-field--short {
+  margin-bottom: 0;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.settings-btn {
+  padding: 10px 22px;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: background 160ms ease-out, color 160ms ease-out;
+}
+
+.settings-btn:hover {
+  background: var(--ink);
+  color: var(--paper-2);
+}
+
+.settings-btn--save {
+  border-color: var(--cinnabar);
+  background: var(--cinnabar);
+  color: var(--paper-2);
+}
+
+.settings-btn--save:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.settings-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.settings-test {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--line);
+  background: var(--paper-2);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.settings-test b {
+  margin-right: 10px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 0.1em;
+}
+
+.settings-test.is-ok {
+  border-left-color: var(--cinnabar);
+}
+
+.settings-test.is-ok b {
+  color: var(--cinnabar);
+}
+
+.settings-test.is-bad {
+  border-left-color: var(--ink-2);
+}
+
+.settings-test p {
+  margin: 6px 0 0;
+  color: var(--grey);
+}
+
+.settings-saved {
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--cinnabar);
+}
+
+.settings-note {
+  margin-top: 30px;
+  padding: 16px 18px;
+  border: 1px dashed var(--line);
+  background: var(--paper-2);
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--grey);
+}
+
+.settings-note > span {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  color: var(--cinnabar);
+}
+
+.settings-note p {
+  margin: 0 0 4px;
+}
+
+.settings-note code {
+  padding: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+}
+
+.settings-danger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.settings-danger button:first-child {
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--grey);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.settings-danger button:first-child:hover {
+  color: var(--cinnabar);
+  border-bottom-color: var(--cinnabar);
+}
+
+.settings-error,
+.settings-error-line,
+.settings-locked {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--cinnabar);
+}
+
+.settings-error {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--cinnabar);
+  background: var(--paper-2);
+}
+
+.settings-error-line {
+  margin: 12px 0 0;
+}
+
+.settings-locked {
+  margin: 12px 0 0;
+  color: var(--ink-2);
+}
+
+@media (max-width: 760px) {
+  .game-nav-item {
+    width: 68px;
+  }
+
+  .settings-status small {
+    display: none;
+  }
+
+  .settings-current {
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .settings-seal {
+    width: 48px;
+    height: 48px;
+  }
+
+  .settings-current-copy h2 {
+    font-size: 20px;
+  }
+
+  .settings-current-facts {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .settings-section-head {
+    grid-template-columns: 1fr;
+    row-gap: 4px;
+  }
+
+  .settings-section-head p {
+    grid-column: 1;
+  }
+
+  .provider-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-advanced {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .settings-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-btn {
+    width: 100%;
+  }
+
+  .settings-endpoint {
+    flex-wrap: wrap;
+  }
+
+  .settings-endpoint > span {
+    flex-basis: 100%;
+  }
+
+  .settings-view .scene-body {
+    padding-bottom: 92px;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-nav-item {
+    width: 60px;
+  }
+
+  .game-nav-item span {
+    letter-spacing: 0.06em;
+  }
+}

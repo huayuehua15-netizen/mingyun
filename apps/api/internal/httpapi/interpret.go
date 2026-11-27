@@ -103,8 +103,9 @@ func (s *Server) handleInterpret(w http.ResponseWriter, r *http.Request) {
 
 	messageID := newChartID()
 	ctx := r.Context()
+	client := s.currentAIClient()
 
-	if s.aiClient == nil || !s.aiClient.Enabled() {
+	if client == nil || !client.Enabled() {
 		meta := interpretMeta{
 			MessageID: messageID,
 			Mode:      "offline",
@@ -133,15 +134,15 @@ func (s *Server) handleInterpret(w http.ResponseWriter, r *http.Request) {
 	meta := interpretMeta{
 		MessageID: messageID,
 		Mode:      "ai",
-		Model:     s.aiClient.Model(),
-		Provider:  s.aiClient.Provider(),
+		Model:     client.Model(),
+		Provider:  client.Provider(),
 		ChartID:   rec.ChartID,
 	}
 	if err := writeSSE(w, flusher, "meta", meta); err != nil {
 		return
 	}
 
-	maxTokens := s.aiClient.MaxTokens()
+	maxTokens := client.MaxTokens()
 	if req.MaxTokens > 0 {
 		maxTokens = req.MaxTokens
 	}
@@ -177,7 +178,7 @@ func (s *Server) handleInterpret(w http.ResponseWriter, r *http.Request) {
 	// 先缓冲完整输出并做盘面事实校验，避免模型编造的卦名、动爻或干支
 	// 已经流到浏览器之后才被发现。校验通过后再按原 SSE 协议分片下发。
 	var raw strings.Builder
-	result, err := s.aiClient.Stream(ctx, messages, maxTokens, func(text string) error {
+	result, err := client.Stream(ctx, messages, maxTokens, func(text string) error {
 		raw.WriteString(text)
 		return nil
 	})
@@ -226,7 +227,7 @@ func interpretErrorText(err error) string {
 	case errors.Is(err, context.DeadlineExceeded):
 		return "模型响应超时，请稍后重试。"
 	case strings.Contains(err.Error(), "401"), strings.Contains(err.Error(), "403"), strings.Contains(err.Error(), "鉴权"):
-		return "模型服务鉴权失败，请检查服务端 MINGYUN_AI_API_KEY。"
+		return "模型服务鉴权失败，请检查模型 Key 与接入配置。"
 	case strings.Contains(err.Error(), "模型服务返回"):
 		return "模型服务返回错误，请查看服务端日志。"
 	default:

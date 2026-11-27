@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { castChart, castLiuYao, fetchCalendar, streamFollowup, streamInterpret } from './api'
-import type { CastMethod, CastRequest, InterpretEvent } from './api'
+import { castChart, castLiuYao, fetchAISettings, fetchCalendar, streamFollowup, streamInterpret } from './api'
+import type { AISettingsView, CastMethod, CastRequest, InterpretEvent } from './api'
 import type { ArchiveEntry, CalendarContext, ChartPayload, ChartView, FollowupMessage, ViewName } from './types'
 import {
   isDaLiuRenPayload,
@@ -20,9 +20,10 @@ import QiMenBoard from './components/QiMenBoard.vue'
 import GameHome from './components/GameHome.vue'
 import GameArchive from './components/GameArchive.vue'
 import GameCodex from './components/GameCodex.vue'
+import GameSettings from './components/GameSettings.vue'
 import GameNav from './components/GameNav.vue'
 
-const VALID_VIEWS: ViewName[] = ['home', 'cast', 'archive', 'codex']
+const VALID_VIEWS: ViewName[] = ['home', 'cast', 'archive', 'codex', 'settings']
 
 function resolveInitialView(): ViewName {
   const fromHash = window.location.hash.replace(/^#\/?/, '') as ViewName
@@ -68,6 +69,18 @@ const methodMeta = computed(
     })[method.value]
 )
 
+const questionPresets = computed(() => {
+  const presets: Record<CastMethod, string[]> = {
+    liuyao: ['这次考试能否通过？', '这次比赛能否晋级？', '这次面试能否拿到 offer？', '这桩合作能否谈成？'],
+    daliuren: ['这桩合作近期能否谈成？', '这次考试结果如何？', '这件事的阻力在哪里？'],
+    ziwei: ['今年整体运势如何？', '近期事业方向怎么走？', '今年感情走势如何？'],
+    xiaoliuren: ['这次考试结果如何？', '这次比赛能否晋级？', '这次面试能否通过？'],
+    meihua: ['这次比赛能否进决赛？', '这次考试能否上岸？', '这桩合作能否谈成？'],
+    qimen: ['这次考试近期走势如何？', '这次比赛能否拿到名次？', '这桩合作何时能定？']
+  }
+  return presets[method.value]
+})
+
 watch(
   [view, methodLabel],
   ([current, label]) => {
@@ -78,7 +91,9 @@ watch(
           ? label
           : current === 'archive'
             ? '卦历'
-            : '六术'
+            : current === 'codex'
+              ? '六术'
+              : '模型'
     document.title = `命云 MingYun · ${viewName}`
   },
   { immediate: true }
@@ -99,6 +114,8 @@ function stepDone(index: number): boolean {
 const archive = ref<ArchiveEntry[]>([])
 const ARCHIVE_KEY = 'mingyun.archive.v1'
 const ARCHIVE_LIMIT = 100
+const aiSettings = ref<AISettingsView | null>(null)
+const aiSettingsError = ref('')
 
 const question = ref('')
 const mode = ref<'coin' | 'manual'>('coin')
@@ -763,10 +780,25 @@ function openArchive(entry: ArchiveEntry) {
   })
 }
 
+async function loadAISettings() {
+  try {
+    aiSettings.value = await fetchAISettings()
+    aiSettingsError.value = ''
+  } catch (e) {
+    aiSettingsError.value = e instanceof Error ? e.message : '模型状态读取失败'
+  }
+}
+
+function onAISettingsUpdated(next: AISettingsView) {
+  aiSettings.value = next
+  aiSettingsError.value = ''
+}
+
 onMounted(async () => {
   loadArchive()
   syncFromHash()
   window.addEventListener('hashchange', syncFromHash)
+  void loadAISettings()
 
   const params = new URLSearchParams(window.location.search)
   const presetMethod = params.get('method')
@@ -1423,6 +1455,12 @@ function formatTime(iso: string): string {
         <span class="hud-cell"><em>历史</em><b>{{ archive.length }}</b></span>
         <span v-if="calendar" class="hud-cell"><em>日</em><b>{{ calendar.day_gz }}</b></span>
         <span class="hud-cell hud-cell--quiet"><em>六术</em><b>{{ methodLabel }}</b></span>
+        <span
+          class="hud-cell hud-cell--quiet hud-cell--model"
+          :title="aiSettings?.enabled ? `${aiSettings.provider_name} · ${aiSettings.model}` : '未配置模型，解读走离线摘要'"
+        >
+          <em>模型</em><b>{{ aiSettings?.enabled ? '在线' : '离线' }}</b>
+        </span>
         <a href="https://github.com/huayuehua15-netizen/mingyun" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
     </header>
@@ -1498,6 +1536,11 @@ function formatTime(iso: string): string {
             "
             @keydown.enter.prevent="onCast"
           />
+          <div v-if="questionPresets.length && !question" class="question-presets" aria-label="常用问法">
+            <button v-for="preset in questionPresets" :key="preset" type="button" @click="question = preset">
+              {{ preset }}
+            </button>
+          </div>
         </div>
         <div v-if="method === 'liuyao'" class="mode-switch">
           <button class="mode-btn" :class="{ 'is-active': mode === 'coin' }" @click="setMode('coin')">
@@ -2092,6 +2135,15 @@ function formatTime(iso: string): string {
         @delete="deleteArchiveEntry"
         @clear="clearArchive"
         @export="exportArchive"
+      />
+
+      <GameSettings
+        v-else-if="view === 'settings'"
+        key="settings"
+        :initial="aiSettings"
+        :initial-error="aiSettingsError"
+        @updated="onAISettingsUpdated"
+        @home="navigate('home')"
       />
 
       <GameCodex

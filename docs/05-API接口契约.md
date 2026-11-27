@@ -1,6 +1,6 @@
 # 05 · API 接口契约
 
-> 本契约描述 v1 的目标形态。**当前仓库已实现的是无账号的单机版**：六术排盘、盘面读取/列表、历法、能力清单、首轮 SSE 解读与同盘追问；盘面存内存。`/auth/*`、额度、分享、支付、管理后台、Postgres/Redis、`Idempotency-Key` 与 SSE 重连缓冲仍属路线图，调用会 404。下文标注“当前实现”的段落与代码一致，其余为设计目标。
+> 本契约描述 v1 的目标形态。**当前仓库已实现的是无账号的单机版**：六术排盘、盘面读取/列表、历法、能力清单、首轮 SSE 解读、同盘追问、模型设置与连通性测试；盘面与模型配置落 `data/` 文件，Docker 下挂 `mingyun-data` 卷。`/auth/*`、额度、分享、支付、管理后台、Postgres/Redis、`Idempotency-Key` 与 SSE 重连缓冲仍属路线图，调用会 404。下文标注“当前实现”的段落与代码一致，其余为设计目标。
 
 ## 1. 通用约定
 
@@ -265,7 +265,7 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
   "message": "应期为什么以出空为节点？",
   "history": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}],
   "style": "plain",
-  "chart": { "...": "可选；服务端内存无此盘时，用本地盘面快照重建 facts" }
+  "chart": { "...": "可选；服务端无此盘时，用本地盘面快照重建 facts" }
 }
 ```
 
@@ -287,6 +287,28 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
 | `ping` | `{}` | 每 15s 一次，防中间设备断连 |
 
 客户端必须处理：网络中断后用 `Last-Event-ID` 重连，服务端从 `sse:{message_id}` 缓冲补发；重连超过 3 次则放弃并提示。
+
+### 3.4.1 模型设置（当前实现）
+
+单机版新增四个设置接口。完整语义、Key 脱敏与热切换见 `12-模型中心与数据持久化.md`。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/settings/ai` | 当前脱敏配置 + 服务商预置清单 |
+| PUT | `/settings/ai` | 校验并保存；`api_key` 省略 = 沿用，空串 = 清空 |
+| DELETE | `/settings/ai` | 删除 `data/ai-settings.json`，回退 `MINGYUN_AI_*` |
+| POST | `/settings/ai/test` | 30 秒超时连接测试，最多 24 token，返回延迟与预览 |
+
+`GET` 的关键字段：`enabled`、`provider_id`、`provider_name`、`provider`、`model`、`base_url`、`has_key`、`key_hint`、`temperature`、`max_tokens`、`timeout_seconds`、`source`（`file / env / none`）、`writable`、`presets`。
+
+`PUT` 的校验：
+
+- `base_url` 只允许 `http / https`，且必须与 `model` 成对；
+- 远程地址必须有 Key，本地端点（`localhost / 127.0.0.1 / ::1 / host.docker.internal`）可无 Key；
+- `temperature` 0–2，`max_tokens` 1–8192；
+- 服务端 `MINGYUN_MODEL_SETTINGS=off` 时返回 403；没有注入设置存储的老 `New(...)` 返回 501。
+
+`POST /test` 的 `data` 为 `{ok, latency_ms, message, preview, provider, model}`，上游错误只返回可读文案，不回显上游原始错误。
 
 ### 3.5 额度与用量
 

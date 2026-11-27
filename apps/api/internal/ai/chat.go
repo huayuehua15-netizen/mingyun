@@ -191,6 +191,31 @@ func (c *Client) Stream(ctx context.Context, messages []Message, maxTokens int, 
 	return result, nil
 }
 
+// Test 用一条极短消息验证地址、Key、模型名与流式响应是否可用。
+//
+// 设置页只需要“能不能接通”，不在这里做盘面校验；真正的解读仍走 Stream
+// 与 AuditReading。返回值是上游正文预览，供页面显示。
+func (c *Client) Test(ctx context.Context) (string, error) {
+	if !c.Enabled() {
+		return "", fmt.Errorf("AI 未配置")
+	}
+	var preview strings.Builder
+	_, err := c.Stream(ctx, []Message{
+		{Role: "user", Content: "只回复两个字：正常"},
+	}, 24, func(text string) error {
+		preview.WriteString(text)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	text := strings.TrimSpace(preview.String())
+	if text == "" {
+		return "上游已响应", nil
+	}
+	return text, nil
+}
+
 func upstreamError(resp *http.Response) error {
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8*1024))
 	var parsed struct {

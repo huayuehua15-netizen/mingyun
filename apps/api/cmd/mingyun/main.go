@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -377,17 +378,34 @@ func runServe(args []string) error {
 	}
 
 	aiCfg := ai.LoadConfig()
-	var aiClient *ai.Client
-	if aiCfg.Enabled() {
-		aiClient = ai.NewClient(aiCfg)
-		fmt.Printf("AI 解读已启用: provider=%s model=%s\n", aiCfg.Provider(), aiCfg.Model)
-	} else {
-		fmt.Println("AI 解读未配置：使用离线盘面摘要；设置 MINGYUN_AI_BASE_URL 与 MINGYUN_AI_MODEL 后启用")
+	dataDir := strings.TrimSpace(os.Getenv("MINGYUN_DATA_DIR"))
+	if dataDir == "" {
+		dataDir = "data"
 	}
+	st, err := store.NewFile(filepath.Join(dataDir, "charts.json"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "警告：盘面文件无法载入，本次退化为内存存储：%v\n", err)
+	}
+	var charts store.ChartStore = store.NewMemory()
+	if st != nil {
+		charts = st
+	}
+	settings, err := ai.NewSettingsStore(filepath.Join(dataDir, "ai-settings.json"), aiCfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "警告：模型配置无法载入，本次退化为内存配置：%v\n", err)
+		settings = ai.NewMemorySettings(aiCfg)
+	}
+	aiCfg = settings.Config()
+	if aiCfg.Enabled() {
+		fmt.Printf("AI 解读已启用: provider=%s model=%s source=%s\n", aiCfg.Provider(), aiCfg.Model, settings.View().Source)
+	} else {
+		fmt.Printf("AI 解读未配置：使用离线盘面摘要；可在网页「模型」页接入，或设置 MINGYUN_AI_* 环境变量\n")
+	}
+	fmt.Printf("数据目录: %s（盘面 charts.json，模型 ai-settings.json）\n", dataDir)
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           httpapi.New(version, store.NewMemory(), es, aiClient),
+		Handler:           httpapi.NewWithSettings(version, charts, es, settings),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

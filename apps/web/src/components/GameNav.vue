@@ -5,7 +5,8 @@ const items: { key: ViewName; glyph: string; label: string; hint: string }[] = [
   { key: 'home', glyph: '山', label: '山门', hint: '回到入口' },
   { key: 'cast', glyph: '盘', label: '起盘', hint: '案上起卦起课起局' },
   { key: 'archive', glyph: '册', label: '卦历', hint: '六术起盘与解读记录' },
-  { key: 'codex', glyph: '典', label: '六术', hint: '术数总览' }
+  { key: 'codex', glyph: '典', label: '六术', hint: '术数总览' },
+  { key: 'settings', glyph: '机', label: '模型', hint: '模型接入与运行状态' }
 ]
 
 defineProps<{ current: ViewName; archiveCount: number }>()

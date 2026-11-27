@@ -23,6 +23,79 @@ export function fetchCalendar(at?: string): Promise<CalendarContext> {
   return request<CalendarContext>(`/api/v1/meta/calendar?${params.toString()}`)
 }
 
+export interface AIProviderPreset {
+  id: string
+  name: string
+  region: string
+  base_url: string
+  default_model: string
+  models: string[] | null
+  key_hint?: string
+  note?: string
+  docs_url?: string
+  custom?: boolean
+}
+
+export interface AISettingsView {
+  enabled: boolean
+  provider_id: string
+  provider_name: string
+  provider: string
+  model: string
+  base_url: string
+  has_key: boolean
+  key_hint?: string
+  temperature: number
+  max_tokens: number
+  timeout_seconds: number
+  source: 'file' | 'env' | 'none' | string
+  writable: boolean
+  updated_at?: string
+  presets: AIProviderPreset[]
+}
+
+export interface AISettingsInput {
+  provider_id?: string
+  base_url?: string
+  model?: string
+  api_key?: string
+  temperature?: number
+  max_tokens?: number
+}
+
+export interface AITestResult {
+  ok: boolean
+  latency_ms: number
+  message: string
+  preview?: string
+  provider?: string
+  model?: string
+}
+
+export function fetchAISettings(): Promise<AISettingsView> {
+  return request<AISettingsView>('/api/v1/settings/ai')
+}
+
+export function saveAISettings(input: AISettingsInput): Promise<AISettingsView> {
+  return request<AISettingsView>('/api/v1/settings/ai', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input)
+  })
+}
+
+export function clearAISettings(): Promise<AISettingsView> {
+  return request<AISettingsView>('/api/v1/settings/ai', { method: 'DELETE' })
+}
+
+export function testAISettings(input: AISettingsInput): Promise<AITestResult> {
+  return request<AITestResult>('/api/v1/settings/ai/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input)
+  })
+}
+
 export interface CastRequest {
   mode?: 'coin' | 'manual' | 'time' | 'numbers'
   question?: string

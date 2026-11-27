@@ -451,6 +451,30 @@ select:focus {
   letter-spacing: 0.06em;
 }
 
+.question-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 9px;
+}
+
+.question-presets button {
+  padding: 1px 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.question-presets button:hover {
+  color: var(--cinnabar);
+  border-bottom-color: var(--cinnabar);
+}
+
 .mode-switch {
   display: flex;
   gap: 18px;

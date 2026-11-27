@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/ai"
@@ -23,24 +24,46 @@ type Server struct {
 	version  string
 	store    store.ChartStore
 	entropy  *entropy.Source
-	aiClient *ai.Client
 	now      func() time.Time
+	aiMu     sync.RWMutex
+	aiClient *ai.Client
+	aiConfig *ai.SettingsStore
 }
 
-// New 构造 HTTP 处理器。
+// New 构造 HTTP 处理器。测试与只读场景可以传入一个已构造好的模型客户端。
 func New(version string, st store.ChartStore, es *entropy.Source, aiClients ...*ai.Client) http.Handler {
-	var aiClient *ai.Client
+	s := newServer(version, st, es)
 	if len(aiClients) > 0 {
-		aiClient = aiClients[0]
+		s.aiClient = aiClients[0]
 	}
-	s := &Server{
-		version:  version,
-		store:    st,
-		entropy:  es,
-		aiClient: aiClient,
-		now:      time.Now,
-	}
+	return withRequestID(s.routes())
+}
 
+// NewWithSettings 构造带模型设置中心的 HTTP 处理器。
+//
+// 启动时先从 SettingsStore 读取配置，后续保存设置会热替换 aiClient。
+func NewWithSettings(version string, st store.ChartStore, es *entropy.Source, settings *ai.SettingsStore) http.Handler {
+	s := newServer(version, st, es)
+	s.aiConfig = settings
+	if settings != nil {
+		cfg := settings.Config()
+		if cfg.Enabled() {
+			s.aiClient = ai.NewClient(cfg)
+		}
+	}
+	return withRequestID(s.routes())
+}
+
+func newServer(version string, st store.ChartStore, es *entropy.Source) *Server {
+	return &Server{
+		version: version,
+		store:   st,
+		entropy: es,
+		now:     time.Now,
+	}
+}
+
+func (s *Server) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /version", s.handleVersion)
@@ -51,9 +74,28 @@ func New(version string, st store.ChartStore, es *entropy.Source, aiClients ...*
 	mux.HandleFunc("GET /api/v1/charts/{id}", s.handleGetChart)
 	mux.HandleFunc("POST /api/v1/charts/{id}/interpret", s.handleInterpret)
 	mux.HandleFunc("POST /api/v1/charts/{id}/messages", s.handleFollowup)
+	mux.HandleFunc("GET /api/v1/settings/ai", s.handleGetAISettings)
+	mux.HandleFunc("PUT /api/v1/settings/ai", s.handleSaveAISettings)
+	mux.HandleFunc("DELETE /api/v1/settings/ai", s.handleClearAISettings)
+	mux.HandleFunc("POST /api/v1/settings/ai/test", s.handleTestAISettings)
 	mux.HandleFunc("/", s.handleNotFound)
+	return mux
+}
 
-	return withRequestID(mux)
+func (s *Server) currentAIClient() *ai.Client {
+	s.aiMu.RLock()
+	defer s.aiMu.RUnlock()
+	return s.aiClient
+}
+
+func (s *Server) replaceAIClient(cfg ai.Config) {
+	var client *ai.Client
+	if cfg.Enabled() {
+		client = ai.NewClient(cfg)
+	}
+	s.aiMu.Lock()
+	s.aiClient = client
+	s.aiMu.Unlock()
 }
 
 type healthResponse struct {

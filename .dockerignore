@@ -6,6 +6,7 @@ scripts/
 tmp/
 backups/
 uploads/
+data/
 
 node_modules/
 dist/

@@ -95,7 +95,8 @@ func (s *Server) handleFollowup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.aiClient == nil || !s.aiClient.Enabled() {
+	client := s.currentAIClient()
+	if client == nil || !client.Enabled() {
 		writeAPIError(w, r, &apiError{Status: http.StatusServiceUnavailable, Code: 30003, Message: "当前未配置模型，无法追问；首轮离线摘要仍可查看。"})
 		return
 	}
@@ -118,15 +119,15 @@ func (s *Server) handleFollowup(w http.ResponseWriter, r *http.Request) {
 	meta := interpretMeta{
 		MessageID: messageID,
 		Mode:      "ai",
-		Model:     s.aiClient.Model(),
-		Provider:  s.aiClient.Provider(),
+		Model:     client.Model(),
+		Provider:  client.Provider(),
 		ChartID:   rec.ChartID,
 	}
 	if err := writeSSE(w, flusher, "meta", meta); err != nil {
 		return
 	}
 
-	maxTokens := s.aiClient.MaxTokens()
+	maxTokens := client.MaxTokens()
 	if req.MaxTokens > 0 {
 		maxTokens = req.MaxTokens
 	}
@@ -139,7 +140,7 @@ func (s *Server) handleFollowup(w http.ResponseWriter, r *http.Request) {
 	// 和首轮解读一样，先缓冲完整回答再做事实校验，避免编造的爻位或干支
 	// 已经流到前端。追问的校验不要求四段标题。
 	var raw strings.Builder
-	result, err := s.aiClient.Stream(ctx, messages, maxTokens, func(text string) error {
+	result, err := client.Stream(ctx, messages, maxTokens, func(text string) error {
 		raw.WriteString(text)
 		return nil
 	})

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -123,7 +124,8 @@ func (s *Server) handleCast(w http.ResponseWriter, r *http.Request) {
 		Entropy:   toss,
 	}
 	if err := s.store.Save(rec); err != nil {
-		writeAPIError(w, r, &apiError{Status: http.StatusInternalServerError, Code: 20001, Message: "保存盘面失败"})
+		log.Printf("cast save chart=%s error=%v", chartID, err)
+		writeAPIError(w, r, &apiError{Status: http.StatusInternalServerError, Code: 20001, Message: "保存盘面失败，请检查 MINGYUN_DATA_DIR 是否可写"})
 		return
 	}
 

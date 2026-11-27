@@ -219,7 +219,7 @@ function requestClear() {
 
     <div v-if="entries.length" class="archive-body">
       <p class="archive-intro">
-        每次起盘自动留档，完整盘面、关键事实与当时解读都收在这里；点一则展开详情。只存本机，不上传服务端。
+        每次起盘自动留档，完整盘面、关键事实与当时解读都收在这里；点一则展开详情。起盘时盘面会提交给本机 API，解读原文只留在这台浏览器。
       </p>
 
       <div class="archive-main-column">
@@ -330,7 +330,7 @@ function requestClear() {
         <div class="archive-note">
           <span class="side-kicker">存档说明</span>
           <p>
-            卦历保存在浏览器 localStorage，最多保留 100 则；清空站点数据会一并移除。服务端不保存你的问事与解读。
+            卦历保存在浏览器 localStorage，最多保留 100 则；清空站点数据会一并移除。服务端保存盘面与所问之事，但不保存 AI 解读原文。
           </p>
         </div>
       </aside>

@@ -392,7 +392,7 @@ export interface Envelope<T> {
   server_time: string
 }
 
-export type ViewName = 'home' | 'cast' | 'archive' | 'codex'
+export type ViewName = 'home' | 'cast' | 'archive' | 'codex' | 'settings'
 
 export type ArchiveStatus = 'pending' | 'reading' | 'done' | 'error'
 

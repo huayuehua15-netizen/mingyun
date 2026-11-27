@@ -29,14 +29,18 @@ LABEL org.opencontainers.image.title="mingyun" \
 
 RUN apk add --no-cache ca-certificates \
  && addgroup -g 10001 -S mingyun \
- && adduser -u 10001 -S -G mingyun -H mingyun
+ && adduser -u 10001 -S -G mingyun -H mingyun \
+ && mkdir -p /data \
+ && chown -R mingyun:mingyun /data \
+ && chmod 700 /data
 
 COPY --from=builder /out/mingyun /usr/local/bin/mingyun
 
 USER mingyun
 EXPOSE 8080
 ENV APP_PORT=8080 \
-    TZ=Asia/Shanghai
+    TZ=Asia/Shanghai \
+    MINGYUN_DATA_DIR=/data
 
 ENTRYPOINT ["mingyun"]
 CMD ["serve"]
