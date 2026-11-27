@@ -14,11 +14,14 @@ import (
 	"github.com/huayuehua15-netizen/mingyun/paipan/calendar"
 	"github.com/huayuehua15-netizen/mingyun/paipan/daliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/liuyao"
+	"github.com/huayuehua15-netizen/mingyun/paipan/meihua"
+	"github.com/huayuehua15-netizen/mingyun/paipan/qimen"
 	"github.com/huayuehua15-netizen/mingyun/paipan/schema"
+	"github.com/huayuehua15-netizen/mingyun/paipan/xiaoliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/ziwei"
 )
 
-// castRequest 三术共用的排盘请求。六爻使用 mode/coins/lines；大六壬使用 at；
+// castRequest 六术共用的排盘请求。六爻使用 mode/coins/lines；大六壬使用 at；
 // 紫微使用 gender/calendar_type/birth_date/birth_time 等出生信息。
 type castRequest struct {
 	Mode             string            `json:"mode"`
@@ -39,6 +42,7 @@ type castRequest struct {
 	BirthTime        string            `json:"birth_time,omitempty"`
 	IsLeapMonth      bool              `json:"is_leap_month,omitempty"`
 	LeapMonthPolicy  string            `json:"leap_month_policy,omitempty"`
+	Numbers          []int             `json:"numbers,omitempty"`
 }
 
 // chartView 返回给前端的盘面。fullFacts=false 时只回 core 事实。
@@ -85,6 +89,12 @@ func (s *Server) handleCast(w http.ResponseWriter, r *http.Request) {
 		chart, apiErr = s.castDaLiuRenChart(req)
 	case schema.MethodZiWei:
 		chart, apiErr = s.castZiWeiChart(req)
+	case schema.MethodXiaoLiuRen:
+		chart, apiErr = s.castXiaoLiuRenChart(req)
+	case schema.MethodMeiHua:
+		chart, apiErr = s.castMeiHuaChart(req)
+	case schema.MethodQiMen:
+		chart, apiErr = s.castQiMenChart(req)
 	default:
 		apiErr = &apiError{
 			Status:  http.StatusForbidden,
@@ -286,6 +296,78 @@ func (s *Server) castZiWeiChart(req castRequest) (schema.Chart, *apiError) {
 	return chart, nil
 }
 
+func (s *Server) castXiaoLiuRenChart(req castRequest) (schema.Chart, *apiError) {
+	cal, apiErr := s.buildCalendar(calendarQuery{
+		at:        req.At,
+		tz:        req.TZ,
+		lon:       req.Lon,
+		trueSolar: req.UseTrueSolarTime,
+		boundary:  req.DayBoundary,
+	})
+	if apiErr != nil {
+		return schema.Chart{}, apiErr
+	}
+	chart, err := xiaoliuren.Cast(xiaoliuren.Input{
+		Question: strings.TrimSpace(req.Question),
+		School:   req.School,
+	}, cal)
+	if err != nil {
+		return schema.Chart{}, badRequest("小六壬起课失败："+err.Error(), nil)
+	}
+	return chart, nil
+}
+
+func (s *Server) castMeiHuaChart(req castRequest) (schema.Chart, *apiError) {
+	cal, apiErr := s.buildCalendar(calendarQuery{
+		at:        req.At,
+		tz:        req.TZ,
+		lon:       req.Lon,
+		trueSolar: req.UseTrueSolarTime,
+		boundary:  req.DayBoundary,
+	})
+	if apiErr != nil {
+		return schema.Chart{}, apiErr
+	}
+	mode := meihua.Mode(strings.TrimSpace(req.Mode))
+	if mode == "" {
+		mode = meihua.ModeTime
+	}
+	if mode == meihua.ModeNumbers && (len(req.Numbers) != 2 && len(req.Numbers) != 3) {
+		return schema.Chart{}, badRequest("报数起卦需提供 2 或 3 个 numbers", map[string]string{"numbers": "need 2 or 3"})
+	}
+	chart, err := meihua.Cast(meihua.Input{
+		Question: strings.TrimSpace(req.Question),
+		Mode:     mode,
+		Numbers:  req.Numbers,
+		School:   req.School,
+	}, cal)
+	if err != nil {
+		return schema.Chart{}, badRequest("梅花易数起卦失败："+err.Error(), nil)
+	}
+	return chart, nil
+}
+
+func (s *Server) castQiMenChart(req castRequest) (schema.Chart, *apiError) {
+	cal, apiErr := s.buildCalendar(calendarQuery{
+		at:        req.At,
+		tz:        req.TZ,
+		lon:       req.Lon,
+		trueSolar: req.UseTrueSolarTime,
+		boundary:  req.DayBoundary,
+	})
+	if apiErr != nil {
+		return schema.Chart{}, apiErr
+	}
+	chart, err := qimen.Cast(qimen.Input{
+		Question: strings.TrimSpace(req.Question),
+		School:   req.School,
+	}, cal)
+	if err != nil {
+		return schema.Chart{}, badRequest("奇门遁甲起局失败："+err.Error(), nil)
+	}
+	return chart, nil
+}
+
 func summaryText(payload any) string {
 	switch p := payload.(type) {
 	case liuyao.Payload:
@@ -293,6 +375,12 @@ func summaryText(payload any) string {
 	case daliuren.Payload:
 		return p.Summary()
 	case ziwei.Payload:
+		return p.Summary()
+	case xiaoliuren.Payload:
+		return p.Summary()
+	case meihua.Payload:
+		return p.Summary()
+	case qimen.Payload:
 		return p.Summary()
 	default:
 		return ""

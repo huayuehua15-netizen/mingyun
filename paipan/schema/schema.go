@@ -16,15 +16,18 @@ import (
 type Method string
 
 const (
-	MethodLiuYao   Method = "liuyao"
-	MethodDaLiuRen Method = "daliuren"
-	MethodZiWei    Method = "ziwei"
+	MethodLiuYao     Method = "liuyao"
+	MethodDaLiuRen   Method = "daliuren"
+	MethodZiWei      Method = "ziwei"
+	MethodXiaoLiuRen Method = "xiaoliuren"
+	MethodMeiHua     Method = "meihua"
+	MethodQiMen      Method = "qimen"
 )
 
 // Valid 判断是否为已支持的术数。
 func (m Method) Valid() bool {
 	switch m {
-	case MethodLiuYao, MethodDaLiuRen, MethodZiWei:
+	case MethodLiuYao, MethodDaLiuRen, MethodZiWei, MethodXiaoLiuRen, MethodMeiHua, MethodQiMen:
 		return true
 	}
 	return false
@@ -152,5 +155,23 @@ var Capabilities = []Capability{
 		Name:     "紫微斗数",
 		Modes:    []string{"birth"},
 		Requires: []string{"gender", "birth_date", "birth_time"},
+	},
+	{
+		Method:   MethodXiaoLiuRen,
+		Name:     "小六壬",
+		Modes:    []string{"time"},
+		Requires: []string{"at", "question"},
+	},
+	{
+		Method:   MethodMeiHua,
+		Name:     "梅花易数",
+		Modes:    []string{"time", "numbers"},
+		Requires: []string{"question"},
+	},
+	{
+		Method:   MethodQiMen,
+		Name:     "奇门遁甲",
+		Modes:    []string{"time"},
+		Requires: []string{"at", "question"},
 	},
 }

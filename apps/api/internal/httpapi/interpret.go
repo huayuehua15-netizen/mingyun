@@ -155,6 +155,18 @@ func (s *Server) handleInterpret(w http.ResponseWriter, r *http.Request) {
 		if maxTokens < 2200 {
 			maxTokens = 2200
 		}
+	case schema.MethodQiMen:
+		if maxTokens < 2600 {
+			maxTokens = 2600
+		}
+	case schema.MethodMeiHua:
+		if maxTokens < 2200 {
+			maxTokens = 2200
+		}
+	case schema.MethodXiaoLiuRen:
+		if maxTokens < 1800 {
+			maxTokens = 1800
+		}
 	}
 	if maxTokens > 8192 {
 		maxTokens = 8192

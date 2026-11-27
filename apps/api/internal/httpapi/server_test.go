@@ -131,7 +131,7 @@ func TestCapabilities(t *testing.T) {
 	if err := json.Unmarshal(env.Data, &caps); err != nil {
 		t.Fatal(err)
 	}
-	if len(caps) != 3 || caps[0].Method != schema.MethodLiuYao {
+	if len(caps) != 6 || caps[0].Method != schema.MethodLiuYao {
 		t.Errorf("能力清单不符: %+v", caps)
 	}
 }
@@ -380,6 +380,79 @@ func TestCastZiWei(t *testing.T) {
 	}
 	if !hasFactLabel(view.Facts, "命宫") || !hasFactLabel(view.Facts, "五行局") {
 		t.Fatal("紫微核心事实缺失")
+	}
+}
+
+func TestCastXiaoLiuRen(t *testing.T) {
+	ts := newTestEnv(t)
+	body := `{"question":"这次考试能否通过？","at":"2026-11-27T10:30:00+08:00","tz":"Asia/Shanghai","use_true_solar_time":false}`
+	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/xiaoliuren/cast", body, http.StatusOK)
+	if env.Code != 0 {
+		t.Fatalf("code = %d, message = %s", env.Code, env.Message)
+	}
+	var view chartView
+	if err := json.Unmarshal(env.Data, &view); err != nil {
+		t.Fatal(err)
+	}
+	payload := view.Payload.(map[string]any)
+	palaces, _ := payload["six_palaces"].([]any)
+	if len(palaces) != 6 {
+		t.Fatalf("six_palaces = %d", len(palaces))
+	}
+	final, _ := payload["final_palace"].(map[string]any)
+	if final["name"] == "" {
+		t.Fatal("小六壬落宫为空")
+	}
+	if !hasFactLabel(view.Facts, "落宫") {
+		t.Fatal("小六壬缺少落宫事实")
+	}
+}
+
+func TestCastMeiHuaNumbers(t *testing.T) {
+	ts := newTestEnv(t)
+	body := `{"question":"比赛结果如何？","mode":"numbers","numbers":[3,4],"at":"2026-11-27T10:30:00+08:00","tz":"Asia/Shanghai"}`
+	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/meihua/cast", body, http.StatusOK)
+	if env.Code != 0 {
+		t.Fatalf("code = %d, message = %s", env.Code, env.Message)
+	}
+	var view chartView
+	if err := json.Unmarshal(env.Data, &view); err != nil {
+		t.Fatal(err)
+	}
+	payload := view.Payload.(map[string]any)
+	ben, _ := payload["ben_gua"].(map[string]any)
+	if ben["name"] != "火雷噬嗑" {
+		t.Fatalf("ben_gua = %v", ben["name"])
+	}
+	if payload["moving_line"].(float64) != 1 {
+		t.Fatalf("moving_line = %v", payload["moving_line"])
+	}
+	if !hasFactLabel(view.Facts, "本卦") || !hasFactLabel(view.Facts, "体用关系") {
+		t.Fatal("梅花核心事实缺失")
+	}
+}
+
+func TestCastQiMen(t *testing.T) {
+	ts := newTestEnv(t)
+	body := `{"question":"这次比赛能否进入决赛？","at":"2026-11-27T06:41:00+08:00","tz":"Asia/Shanghai","use_true_solar_time":false}`
+	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/qimen/cast", body, http.StatusOK)
+	if env.Code != 0 {
+		t.Fatalf("code = %d, message = %s", env.Code, env.Message)
+	}
+	var view chartView
+	if err := json.Unmarshal(env.Data, &view); err != nil {
+		t.Fatal(err)
+	}
+	payload := view.Payload.(map[string]any)
+	if payload["dun"] != "阴遁" || payload["ju"].(float64) != 2 {
+		t.Fatalf("起局 = %v%v", payload["dun"], payload["ju"])
+	}
+	palaces, _ := payload["palaces"].([]any)
+	if len(palaces) != 9 {
+		t.Fatalf("palaces = %d", len(palaces))
+	}
+	if !hasFactLabel(view.Facts, "值符") || !hasFactLabel(view.Facts, "值使") {
+		t.Fatal("奇门核心事实缺失")
 	}
 }
 

@@ -11,7 +11,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'start', method?: 'liuyao' | 'daliuren' | 'ziwei'): void
+  (e: 'start', method?: 'liuyao' | 'daliuren' | 'ziwei' | 'xiaoliuren' | 'meihua' | 'qimen'): void
   (e: 'archive'): void
   (e: 'codex'): void
 }>()
@@ -90,6 +90,42 @@ const methods = [
     open: true,
     steps: ['安星', '布宫', '读盘'],
     action: '入卷'
+  },
+  {
+    key: 'xiaoliuren',
+    volume: '卷四',
+    roman: '肆',
+    glyph: '小',
+    name: '小六壬',
+    desc: '月日时 · 六宫 · 近事',
+    state: '已开卷',
+    open: true,
+    steps: ['问事', '起课', '断课'],
+    action: '入卷'
+  },
+  {
+    key: 'meihua',
+    volume: '卷五',
+    roman: '伍',
+    glyph: '梅',
+    name: '梅花易数',
+    desc: '时间报数 · 体用 · 动爻',
+    state: '已开卷',
+    open: true,
+    steps: ['起卦', '成卦', '断卦'],
+    action: '入卷'
+  },
+  {
+    key: 'qimen',
+    volume: '卷六',
+    roman: '陆',
+    glyph: '奇',
+    name: '奇门遁甲',
+    desc: '九宫 · 星门神 · 近期',
+    state: '已开卷',
+    open: true,
+    steps: ['定时', '起局', '断局'],
+    action: '入卷'
   }
 ]
 
@@ -113,14 +149,14 @@ function enterMethod(method: { key: string; open: boolean }) {
         <h1><span>问一事</span><span>开一盘</span></h1>
         <p class="home-lede">
           六爻问事，大六壬起课，紫微斗数看命。<br />
-          盘面由确定性引擎计算，解读交给你自配的大模型。
+          小六壬、梅花、奇门补近期成败，六术共用一套盘面事实与模型解读。
         </p>
         <div class="home-actions">
           <button class="seal-btn" @click="$emit('start')">
             {{ hasChart ? '继续解盘' : '入山问卦' }}
             <i>→</i>
           </button>
-          <button class="text-btn" @click="$emit('codex')">先读三术</button>
+          <button class="text-btn" @click="$emit('codex')">先读六术</button>
         </div>
         <div class="home-stamp">
           <span>心诚</span>
@@ -154,7 +190,7 @@ function enterMethod(method: { key: string; open: boolean }) {
             最近一盘：<b>{{ lastEntry.title || lastEntry.gua_name || '未名盘' }}</b><br />
             {{ lastEntry.question || '未记所问' }}
           </p>
-          <p v-else>每成一卦，会自动收入「卦历」，只存在这台机器上。</p>
+          <p v-else>每成一盘，会自动收入「卦历」，只存在这台机器上。</p>
         </div>
       </aside>
     </div>
@@ -167,7 +203,7 @@ function enterMethod(method: { key: string; open: boolean }) {
       <header class="section-head">
         <span>行卷</span>
         <i></i>
-        <em>一卷六爻，二卷大六壬，三卷紫微斗数</em>
+        <em>一卷六爻，二卷大六壬，三卷紫微斗数，四至六卷为近期占</em>
         <b class="route-progress">{{ openCount }}<span>/ {{ methods.length }}</span></b>
       </header>
 
@@ -210,7 +246,7 @@ function enterMethod(method: { key: string; open: boolean }) {
 
       <div class="route-foot">
         <button class="text-btn" @click="$emit('archive')">查看历史记录 {{ archiveCount }}</button>
-        <button class="text-btn" @click="$emit('codex')">展开三术</button>
+        <button class="text-btn" @click="$emit('codex')">展开六术</button>
       </div>
     </section>
   </section>

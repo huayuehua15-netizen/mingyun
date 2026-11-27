@@ -230,7 +230,113 @@ export interface ZiWeiPayload {
   school?: Record<string, string>
 }
 
-export type ChartPayload = LiuYaoPayload | DaLiuRenPayload | ZiWeiPayload
+export type ChartPayload =
+  | LiuYaoPayload
+  | DaLiuRenPayload
+  | ZiWeiPayload
+  | XiaoLiuRenPayload
+  | MeiHuaPayload
+  | QiMenPayload
+
+export interface XiaoLiuRenPalace {
+  index: number
+  name: string
+  element: string
+  deity: string
+  direction: string
+  luck: string
+  meaning: string
+}
+
+export interface XiaoLiuRenPayload {
+  question?: string
+  lunar_month: number
+  lunar_day: number
+  lunar_leap?: boolean
+  hour_zhi: string
+  month_palace: XiaoLiuRenPalace
+  day_palace: XiaoLiuRenPalace
+  final_palace: XiaoLiuRenPalace
+  six_palaces: XiaoLiuRenPalace[]
+  school?: Record<string, string>
+}
+
+export interface MeiHuaTrigram {
+  name: string
+  element: string
+}
+
+export interface MeiHuaHexagram {
+  name: string
+  upper: string
+  lower: string
+  /** 自下而上，true 为阳。 */
+  lines: boolean[]
+}
+
+export interface MeiHuaPayload {
+  question?: string
+  mode: string
+  numbers?: number[]
+  year_zhi?: string
+  lunar_date?: string
+  hour_zhi?: string
+  upper_number: number
+  lower_number: number
+  moving_number: number
+  ben_gua: MeiHuaHexagram
+  hu_gua: MeiHuaHexagram
+  bian_gua: MeiHuaHexagram
+  moving_line: number
+  ti_gua: MeiHuaTrigram
+  yong_gua: MeiHuaTrigram
+  relation: string
+  changed_relation: string
+  school?: Record<string, string>
+}
+
+export interface QiMenPalace {
+  index: number
+  name: string
+  gua: string
+  direction: string
+  earth_gan: string
+  heaven_gan: string
+  earth_wu_xing: string
+  heaven_wu_xing: string
+  star: string
+  door: string
+  god: string
+  men_po?: boolean
+  kong?: boolean
+  horse?: boolean
+  is_zhi_fu?: boolean
+  is_zhi_shi?: boolean
+}
+
+export interface QiMenPayload {
+  question?: string
+  dun: string
+  ju: number
+  yuan: string
+  solar_term: string
+  term_at: string
+  year_gz: string
+  month_gz: string
+  day_gz: string
+  hour_gz: string
+  xun_shou: string
+  instrument: string
+  zhi_fu: string
+  zhi_fu_palace: number
+  zhi_shi: string
+  zhi_shi_palace: number
+  kong: [string, string]
+  horse: string
+  horse_palace: number
+  palaces: QiMenPalace[]
+  school?: Record<string, string>
+}
 
 export function isLiuYaoPayload(payload: ChartPayload): payload is LiuYaoPayload {
   return 'gua_name' in payload && 'lines' in payload
@@ -242,6 +348,18 @@ export function isDaLiuRenPayload(payload: ChartPayload): payload is DaLiuRenPay
 
 export function isZiWeiPayload(payload: ChartPayload): payload is ZiWeiPayload {
   return 'palaces' in payload && 'ming_gong' in payload
+}
+
+export function isXiaoLiuRenPayload(payload: ChartPayload): payload is XiaoLiuRenPayload {
+  return 'six_palaces' in payload && 'final_palace' in payload
+}
+
+export function isMeiHuaPayload(payload: ChartPayload): payload is MeiHuaPayload {
+  return 'ben_gua' in payload && 'ti_gua' in payload
+}
+
+export function isQiMenPayload(payload: ChartPayload): payload is QiMenPayload {
+  return 'palaces' in payload && 'zhi_fu' in payload
 }
 
 export interface Entropy {
@@ -298,7 +416,7 @@ export interface FollowupMessage {
 export interface ArchiveEntry {
   chart_id: string
   question: string
-  /** 旧六爻记录字段；三术统一展示优先用 title / subtitle。 */
+  /** 旧六爻记录字段；六术统一展示优先用 title / subtitle。 */
   gua_name?: string
   changed_gua?: string
   title?: string

@@ -3,10 +3,20 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { castChart, castLiuYao, fetchCalendar, streamFollowup, streamInterpret } from './api'
 import type { CastMethod, CastRequest, InterpretEvent } from './api'
 import type { ArchiveEntry, CalendarContext, ChartPayload, ChartView, FollowupMessage, ViewName } from './types'
-import { isDaLiuRenPayload, isLiuYaoPayload, isZiWeiPayload } from './types'
+import {
+  isDaLiuRenPayload,
+  isLiuYaoPayload,
+  isMeiHuaPayload,
+  isQiMenPayload,
+  isXiaoLiuRenPayload,
+  isZiWeiPayload
+} from './types'
 import LiuYaoBoard from './components/LiuYaoBoard.vue'
 import DaLiuRenBoard from './components/DaLiuRenBoard.vue'
 import ZiWeiBoard from './components/ZiWeiBoard.vue'
+import XiaoLiuRenBoard from './components/XiaoLiuRenBoard.vue'
+import MeiHuaBoard from './components/MeiHuaBoard.vue'
+import QiMenBoard from './components/QiMenBoard.vue'
 import GameHome from './components/GameHome.vue'
 import GameArchive from './components/GameArchive.vue'
 import GameCodex from './components/GameCodex.vue'
@@ -24,9 +34,38 @@ function resolveInitialView(): ViewName {
 
 const view = ref<ViewName>(resolveInitialView())
 const method = ref<CastMethod>('liuyao')
-const chartUnit = computed(() => (method.value === 'liuyao' ? '卦' : method.value === 'daliuren' ? '课' : '盘'))
+const chartUnit = computed(
+  () =>
+    ({
+      liuyao: '卦',
+      daliuren: '课',
+      ziwei: '盘',
+      xiaoliuren: '课',
+      meihua: '卦',
+      qimen: '局'
+    })[method.value]
+)
 const methodLabel = computed(
-  () => ({ liuyao: '六爻', daliuren: '大六壬', ziwei: '紫微斗数' })[method.value]
+  () =>
+    ({
+      liuyao: '六爻',
+      daliuren: '大六壬',
+      ziwei: '紫微斗数',
+      xiaoliuren: '小六壬',
+      meihua: '梅花易数',
+      qimen: '奇门遁甲'
+    })[method.value]
+)
+const methodMeta = computed(
+  () =>
+    ({
+      liuyao: { volume: '卷一', glyph: '卦', steps: ['问事', '摇卦', '解卦'] },
+      daliuren: { volume: '卷二', glyph: '课', steps: ['定时', '成课', '断课'] },
+      ziwei: { volume: '卷三', glyph: '盘', steps: ['生辰', '安星', '读盘'] },
+      xiaoliuren: { volume: '卷四', glyph: '课', steps: ['问事', '起课', '断课'] },
+      meihua: { volume: '卷五', glyph: '卦', steps: ['起卦', '成卦', '断卦'] },
+      qimen: { volume: '卷六', glyph: '局', steps: ['定时', '起局', '断局'] }
+    })[method.value]
 )
 
 watch(
@@ -39,24 +78,22 @@ watch(
           ? label
           : current === 'archive'
             ? '卦历'
-            : '三术'
+            : '六术'
     document.title = `命云 MingYun · ${viewName}`
   },
   { immediate: true }
-)
-const methodMeta = computed(
-  () =>
-    ({
-      liuyao: { volume: '卷一', glyph: '卦', steps: ['问事', '摇卦', '解卦'] },
-      daliuren: { volume: '卷二', glyph: '课', steps: ['定时', '成课', '断课'] },
-      ziwei: { volume: '卷三', glyph: '盘', steps: ['生辰', '安星', '读盘'] }
-    })[method.value]
 )
 
 function stepDone(index: number): boolean {
   if (index === 2) return !!chart.value
   if (method.value === 'liuyao') return index === 0 ? questionReady.value : tosses.value.length > 0
-  if (method.value === 'daliuren') return index === 0 ? !!daliurenAt.value : !!chart.value
+  if (method.value === 'daliuren') return index === 0 ? !!daliurenAt.value && questionReady.value : !!chart.value
+  if (method.value === 'xiaoliuren' || method.value === 'qimen') {
+    return index === 0 ? !!quickAt.value && questionReady.value : !!chart.value
+  }
+  if (method.value === 'meihua') {
+    return index === 0 ? questionReady.value && (meihuaMode.value === 'time' || meihuaNumbersReady.value) : !!chart.value
+  }
   return index === 0 ? birthReady.value : !!chart.value
 }
 const archive = ref<ArchiveEntry[]>([])
@@ -71,10 +108,22 @@ const lineOptions = ['少阳', '少阴', '老阳', '老阴']
 const methodTabs: { key: CastMethod; name: string; note: string }[] = [
   { key: 'liuyao', name: '六爻', note: '问事' },
   { key: 'daliuren', name: '大六壬', note: '起课' },
-  { key: 'ziwei', name: '紫微', note: '看命' }
+  { key: 'ziwei', name: '紫微', note: '看命' },
+  { key: 'xiaoliuren', name: '小六壬', note: '近事' },
+  { key: 'meihua', name: '梅花', note: '起卦' },
+  { key: 'qimen', name: '奇门', note: '近期' }
 ]
 
 const daliurenAt = ref('')
+const quickAt = ref('')
+const meihuaMode = ref<'time' | 'numbers'>('time')
+const meihuaA = ref('3')
+const meihuaB = ref('4')
+const meihuaNumbersReady = computed(() => {
+  const a = Number(meihuaA.value)
+  const b = Number(meihuaB.value)
+  return Number.isInteger(a) && Number.isInteger(b) && a > 0 && b > 0 && a <= 999999 && b <= 999999
+})
 const birth = ref({
   gender: 'male' as 'male' | 'female',
   calendar_type: 'solar' as 'solar' | 'lunar',
@@ -99,6 +148,85 @@ const daLiuRenPayload = computed(() => {
 const ziWeiPayload = computed(() => {
   const payload = chart.value?.payload
   return payload && isZiWeiPayload(payload) ? payload : null
+})
+const xiaoLiuRenPayload = computed(() => {
+  const payload = chart.value?.payload
+  return payload && isXiaoLiuRenPayload(payload) ? payload : null
+})
+const meiHuaPayload = computed(() => {
+  const payload = chart.value?.payload
+  return payload && isMeiHuaPayload(payload) ? payload : null
+})
+const qiMenPayload = computed(() => {
+  const payload = chart.value?.payload
+  return payload && isQiMenPayload(payload) ? payload : null
+})
+
+const castTitle = computed(() => (chart.value ? '盘已定' : `案上起${chartUnit.value}`))
+
+const emptyCopy = computed(() => {
+  switch (method.value) {
+    case 'daliuren':
+      return {
+        seal: '未课',
+        hint: '定此刻 · 起一课',
+        steps: [
+          ['定时', '月将加时，课随刻转'],
+          ['成课', '四课三传，十二天将'],
+          ['断课', '盘面即事实，AI 只负责说人话']
+        ]
+      }
+    case 'ziwei':
+      return {
+        seal: '未盘',
+        hint: '填生辰 · 安一盘',
+        steps: [
+          ['生辰', '公历农历皆可，闰月有口径'],
+          ['安星', '命身十二宫，主辅四化'],
+          ['读盘', '盘面即事实，AI 只负责说人话']
+        ]
+      }
+    case 'xiaoliuren':
+      return {
+        seal: '未课',
+        hint: '定此刻 · 起一课',
+        steps: [
+          ['问事', '近期一件具体事，越具体越好'],
+          ['起课', '农历月日时，三宫落六神'],
+          ['断课', '月看背景，日看事体，时看动向']
+        ]
+      }
+    case 'meihua':
+      return {
+        seal: '未卦',
+        hint: '定方式 · 起一卦',
+        steps: [
+          ['问事', '时间起卦或报数起卦皆可'],
+          ['成卦', '本卦互卦变卦，体用生克'],
+          ['断卦', '盘面即事实，AI 只负责说人话']
+        ]
+      }
+    case 'qimen':
+      return {
+        seal: '未局',
+        hint: '定此刻 · 起一局',
+        steps: [
+          ['定时', '节气定阴阳遁，符头定三元'],
+          ['起局', '九宫三奇六仪，值符值使'],
+          ['断局', '星门神与用神宫，先看事实']
+        ]
+      }
+    default:
+      return {
+        seal: '未占',
+        hint: '心诚则灵 · 先问一事',
+        steps: [
+          ['问事', '问题越具体，盘越好读'],
+          ['摇卦', '六次铜钱，自下而上'],
+          ['断卦', '盘面即事实，AI 只负责说人话']
+        ]
+      }
+  }
 })
 
 // 一爻一摇：tosses 里每一项是三枚铜钱（1=背，0=字）。
@@ -297,19 +425,39 @@ const birthReady = computed(
 const methodReady = computed(() => {
   if (method.value === 'ziwei') return birthReady.value
   if (method.value === 'daliuren') return !!daliurenAt.value && questionReady.value
+  if (method.value === 'xiaoliuren' || method.value === 'qimen') {
+    return !!quickAt.value && questionReady.value
+  }
+  if (method.value === 'meihua') {
+    return questionReady.value && (meihuaMode.value === 'time' || meihuaNumbersReady.value)
+  }
   return true
 })
 
 const castLabel = computed(() => {
-  if (submitting.value) return method.value === 'liuyao' ? '成卦中' : method.value === 'daliuren' ? '起课中' : '排盘中'
+  if (submitting.value) {
+    if (method.value === 'liuyao') return '成卦中'
+    if (method.value === 'daliuren' || method.value === 'xiaoliuren') return '起课中'
+    if (method.value === 'qimen') return '起局中'
+    return '排盘中'
+  }
   if (shaking.value) return '摇卦中'
   if (chart.value) {
     if (method.value === 'ziwei') return '再 排 盘'
-    if (method.value === 'daliuren') return '再 起 课'
+    if (method.value === 'daliuren' || method.value === 'xiaoliuren') return '再 起 课'
+    if (method.value === 'qimen') return '再 起 局'
     return '再 起 卦'
   }
   if (method.value === 'ziwei') return '排 命 盘'
-  if (method.value === 'daliuren') return questionReady.value ? '起 课' : '先 问 一 事'
+  if (method.value === 'daliuren' || method.value === 'xiaoliuren') {
+    return questionReady.value ? '起 课' : '先 问 一 事'
+  }
+  if (method.value === 'qimen') return questionReady.value ? '起 局' : '先 问 一 事'
+  if (method.value === 'meihua') {
+    if (!questionReady.value) return '先 问 一 事'
+    if (meihuaMode.value === 'numbers' && !meihuaNumbersReady.value) return '补 两 个 数'
+    return '起 卦'
+  }
   if (!questionReady.value) return '先 问 一 事'
   if (mode.value === 'manual') return '起 卦'
   if (tosses.value.length >= 6) return '重试成卦'
@@ -381,6 +529,33 @@ function summaryFields(payload: ChartPayload) {
     return {
       title: `大六壬 · ${payload.ke_ti}`,
       subtitle: `${payload.month_general.zhi}将 · ${payload.gate}课 · ${payload.san_chuan.map((c) => c.branch).join('→')}`,
+      guaName: '',
+      changedGua: '',
+      topic: ''
+    }
+  }
+  if (isXiaoLiuRenPayload(payload)) {
+    return {
+      title: `小六壬 · ${payload.final_palace.name}`,
+      subtitle: `月${payload.month_palace.name} · 日${payload.day_palace.name} · 时${payload.final_palace.name}`,
+      guaName: '',
+      changedGua: '',
+      topic: ''
+    }
+  }
+  if (isMeiHuaPayload(payload)) {
+    return {
+      title: `梅花 · ${payload.ben_gua.name}`,
+      subtitle: `之 ${payload.bian_gua.name} · 第${payload.moving_line}爻 · ${payload.relation}`,
+      guaName: payload.ben_gua.name,
+      changedGua: payload.bian_gua.name,
+      topic: ''
+    }
+  }
+  if (isQiMenPayload(payload)) {
+    return {
+      title: `奇门 · ${payload.dun}${payload.ju}局`,
+      subtitle: `值符${payload.zhi_fu} · 值使${payload.zhi_shi} · ${payload.solar_term}${payload.yuan}`,
       guaName: '',
       changedGua: '',
       topic: ''
@@ -595,10 +770,18 @@ onMounted(async () => {
 
   const params = new URLSearchParams(window.location.search)
   const presetMethod = params.get('method')
-  if (presetMethod === 'daliuren' || presetMethod === 'ziwei' || presetMethod === 'liuyao') {
+  if (
+    presetMethod === 'daliuren' ||
+    presetMethod === 'ziwei' ||
+    presetMethod === 'liuyao' ||
+    presetMethod === 'xiaoliuren' ||
+    presetMethod === 'meihua' ||
+    presetMethod === 'qimen'
+  ) {
     method.value = presetMethod
   }
   daliurenAt.value = localDateTimeInput()
+  quickAt.value = localDateTimeInput()
   const presetAt = params.get('at')
   if (presetAt) replayAt = presetAt
   previewMode.value = params.get('cast') === '1'
@@ -682,6 +865,7 @@ function resetBoard() {
 function startMethod(next: CastMethod) {
   method.value = next
   if (next === 'daliuren' && !daliurenAt.value) daliurenAt.value = localDateTimeInput()
+  if ((next === 'xiaoliuren' || next === 'qimen') && !quickAt.value) quickAt.value = localDateTimeInput()
   if (chart.value && chart.value.method !== next) resetBoard()
   navigate('cast')
   nextTick(() => questionEl.value?.focus())
@@ -704,6 +888,7 @@ function switchMethod(next: CastMethod) {
   if (next === method.value) return
   method.value = next
   if (next === 'daliuren' && !daliurenAt.value) daliurenAt.value = localDateTimeInput()
+  if ((next === 'xiaoliuren' || next === 'qimen') && !quickAt.value) quickAt.value = localDateTimeInput()
   resetBoard()
   error.value = ''
 }
@@ -715,6 +900,12 @@ function setMode(next: 'coin' | 'manual') {
   chart.value = null
   tosses.value = []
   error.value = ''
+}
+
+function setMeiHuaMode(next: 'time' | 'numbers') {
+  if (submitting.value || meihuaMode.value === next) return
+  resetBoard()
+  meihuaMode.value = next
 }
 
 function reset() {
@@ -966,6 +1157,30 @@ async function onCast() {
     await submitZiWei()
     return
   }
+  if (method.value === 'xiaoliuren') {
+    if (chart.value) {
+      reset()
+      return
+    }
+    await submitXiaoLiuRen()
+    return
+  }
+  if (method.value === 'meihua') {
+    if (chart.value) {
+      reset()
+      return
+    }
+    await submitMeiHua()
+    return
+  }
+  if (method.value === 'qimen') {
+    if (chart.value) {
+      reset()
+      return
+    }
+    await submitQiMen()
+    return
+  }
   if (!chart.value && !questionReady.value) {
     questionEl.value?.focus()
     return
@@ -1110,6 +1325,60 @@ async function submitDaLiuRen() {
   })
 }
 
+async function submitXiaoLiuRen() {
+  if (!questionReady.value) {
+    error.value = '小六壬需要先写明所问之事'
+    questionEl.value?.focus()
+    return
+  }
+  if (!quickAt.value) {
+    error.value = '请先确认起课时间'
+    return
+  }
+  await submitMethodChart('xiaoliuren', {
+    question: question.value.trim(),
+    at: new Date(quickAt.value).toISOString()
+  })
+}
+
+async function submitMeiHua() {
+  if (!questionReady.value) {
+    error.value = '梅花易数需要先写明所问之事'
+    questionEl.value?.focus()
+    return
+  }
+  if (meihuaMode.value === 'numbers' && !meihuaNumbersReady.value) {
+    error.value = '请填写两个正整数再报数起卦'
+    return
+  }
+  const req: CastRequest = {
+    question: question.value.trim(),
+    mode: meihuaMode.value
+  }
+  if (meihuaMode.value === 'numbers') {
+    req.numbers = [Number(meihuaA.value), Number(meihuaB.value)]
+  } else {
+    req.at = new Date(quickAt.value || localDateTimeInput()).toISOString()
+  }
+  await submitMethodChart('meihua', req)
+}
+
+async function submitQiMen() {
+  if (!questionReady.value) {
+    error.value = '奇门遁甲需要先写明所问之事'
+    questionEl.value?.focus()
+    return
+  }
+  if (!quickAt.value) {
+    error.value = '请先确认起局时间'
+    return
+  }
+  await submitMethodChart('qimen', {
+    question: question.value.trim(),
+    at: new Date(quickAt.value).toISOString()
+  })
+}
+
 async function submitZiWei() {
   if (!birthReady.value) {
     error.value = '请补全出生日期、时辰与性别'
@@ -1153,7 +1422,7 @@ function formatTime(iso: string): string {
       <div class="game-hud">
         <span class="hud-cell"><em>历史</em><b>{{ archive.length }}</b></span>
         <span v-if="calendar" class="hud-cell"><em>日</em><b>{{ calendar.day_gz }}</b></span>
-        <span class="hud-cell hud-cell--quiet"><em>三术</em><b>{{ methodLabel }}</b></span>
+        <span class="hud-cell hud-cell--quiet"><em>六术</em><b>{{ methodLabel }}</b></span>
         <a href="https://github.com/huayuehua15-netizen/mingyun" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
     </header>
@@ -1176,7 +1445,7 @@ function formatTime(iso: string): string {
           <button class="scene-back" @click="navigate('home')">← 山门</button>
           <div class="scene-heading">
             <span>{{ methodMeta.volume }} · {{ methodLabel }}</span>
-            <h1>{{ chart ? '盘已定' : '案上起' + (method === 'liuyao' ? '卦' : method === 'daliuren' ? '课' : '盘') }}</h1>
+            <h1>{{ castTitle }}</h1>
           </div>
           <div class="scene-steps" :aria-label="`${methodLabel}起盘进度`">
             <template v-for="(step, i) in methodMeta.steps" :key="step">
@@ -1214,7 +1483,19 @@ function formatTime(iso: string): string {
             ref="questionEl"
             v-model="question"
             maxlength="200"
-            :placeholder="method === 'ziwei' ? '例如：今年的事业与感情如何？' : method === 'daliuren' ? '例如：这桩合作能否谈成？' : '例如：这次考试能否通过？'"
+            :placeholder="
+              method === 'ziwei'
+                ? '例如：今年的事业与感情如何？'
+                : method === 'daliuren'
+                  ? '例如：这桩合作能否谈成？'
+                  : method === 'meihua'
+                    ? '例如：这次比赛能否进决赛？'
+                    : method === 'qimen'
+                      ? '例如：这次考试近期走势如何？'
+                      : method === 'xiaoliuren'
+                        ? '例如：这次面试结果如何？'
+                        : '例如：这次考试能否通过？'
+            "
             @keydown.enter.prevent="onCast"
           />
         </div>
@@ -1247,6 +1528,57 @@ function formatTime(iso: string): string {
             <input v-model="daliurenAt" type="datetime-local" />
           </label>
           <button class="text-btn" type="button" @click="daliurenAt = localDateTimeInput()">用此刻</button>
+        </div>
+      </div>
+
+      <div v-if="method === 'xiaoliuren' || method === 'qimen'" class="method-form">
+        <div class="method-form-copy">
+          <span>{{ method === 'xiaoliuren' ? '起课时间' : '起局时间' }}</span>
+          <p v-if="method === 'xiaoliuren'">
+            小六壬以农历月、日、时落六宫。月看背景，日看事体，时看当下动向，适合近期一件具体事。
+          </p>
+          <p v-else>
+            时家奇门以节气定阴阳遁与局数，再布九宫。此处只排基础转盘，不套格局与十干克应。
+          </p>
+        </div>
+        <div class="method-fields">
+          <label>
+            <span>时刻</span>
+            <input v-model="quickAt" type="datetime-local" />
+          </label>
+          <button class="text-btn" type="button" @click="quickAt = localDateTimeInput()">用此刻</button>
+        </div>
+      </div>
+
+      <div v-if="method === 'meihua'" class="method-form">
+        <div class="method-form-copy">
+          <span>起卦方式</span>
+          <p>时间起卦取年支、农历月日时；报数起卦取两组数。动爻只取一处，体用按动爻所在卦为用。</p>
+        </div>
+        <div class="mode-switch">
+          <button class="mode-btn" :class="{ 'is-active': meihuaMode === 'time' }" @click="setMeiHuaMode('time')">
+            时间起卦
+          </button>
+          <button class="mode-btn" :class="{ 'is-active': meihuaMode === 'numbers' }" @click="setMeiHuaMode('numbers')">
+            报数起卦
+          </button>
+        </div>
+        <div v-if="meihuaMode === 'time'" class="method-fields">
+          <label>
+            <span>时刻</span>
+            <input v-model="quickAt" type="datetime-local" />
+          </label>
+          <button class="text-btn" type="button" @click="quickAt = localDateTimeInput()">用此刻</button>
+        </div>
+        <div v-else class="method-fields">
+          <label>
+            <span>上卦数</span>
+            <input v-model="meihuaA" type="number" min="1" max="999999" inputmode="numeric" />
+          </label>
+          <label>
+            <span>下卦数</span>
+            <input v-model="meihuaB" type="number" min="1" max="999999" inputmode="numeric" />
+          </label>
         </div>
       </div>
 
@@ -1422,6 +1754,50 @@ function formatTime(iso: string): string {
           </div>
         </header>
 
+        <header v-else-if="xiaoLiuRenPayload" class="board-head fade-in">
+          <div class="gua-block">
+            <div class="gua-kicker">
+              小六壬 · 农历{{ xiaoLiuRenPayload.lunar_leap ? '闰' : '' }}{{ xiaoLiuRenPayload.lunar_month }}月{{
+                xiaoLiuRenPayload.lunar_day
+              }}日 · {{ xiaoLiuRenPayload.hour_zhi }}时
+            </div>
+            <h2>{{ xiaoLiuRenPayload.final_palace.name }}</h2>
+          </div>
+          <div class="gua-change">
+            <span>三宫</span>
+            <strong>{{ xiaoLiuRenPayload.month_palace.name }} → {{ xiaoLiuRenPayload.day_palace.name }} → {{ xiaoLiuRenPayload.final_palace.name }}</strong>
+            <em>{{ xiaoLiuRenPayload.final_palace.element }} · {{ xiaoLiuRenPayload.final_palace.deity }}</em>
+          </div>
+        </header>
+
+        <header v-else-if="meiHuaPayload" class="board-head fade-in">
+          <div class="gua-block">
+            <div class="gua-kicker">
+              梅花易数 · {{ meiHuaPayload.mode === 'numbers' ? '报数' : '时间' }}起卦 · 第{{ meiHuaPayload.moving_line }}爻动
+            </div>
+            <h2>{{ meiHuaPayload.ben_gua.name }}</h2>
+          </div>
+          <div class="gua-change">
+            <span>之</span>
+            <strong>{{ meiHuaPayload.bian_gua.name }}</strong>
+            <em>{{ meiHuaPayload.relation }}</em>
+          </div>
+        </header>
+
+        <header v-else-if="qiMenPayload" class="board-head fade-in">
+          <div class="gua-block">
+            <div class="gua-kicker">
+              奇门遁甲 · {{ qiMenPayload.dun }}{{ qiMenPayload.ju }}局 · {{ qiMenPayload.solar_term }}{{ qiMenPayload.yuan }}
+            </div>
+            <h2>{{ qiMenPayload.zhi_fu }}值符</h2>
+          </div>
+          <div class="gua-change">
+            <span>值使</span>
+            <strong>{{ qiMenPayload.zhi_shi }}</strong>
+            <em>符 {{ qiMenPayload.zhi_fu_palace }}宫 · 使 {{ qiMenPayload.zhi_shi_palace }}宫</em>
+          </div>
+        </header>
+
         <div class="board-meta fade-in">
           <template v-if="liuyaoPayload">
             <span>月建 <b>{{ liuyaoPayload.month_gz }}</b></span>
@@ -1443,14 +1819,41 @@ function formatTime(iso: string): string {
             <span>紫微 <b>{{ ziWeiPayload.ziwei_pos }}</b></span>
             <span>天府 <b>{{ ziWeiPayload.tianfu_pos }}</b></span>
           </template>
+          <template v-else-if="xiaoLiuRenPayload">
+            <span>月宫 <b>{{ xiaoLiuRenPayload.month_palace.name }}</b></span>
+            <span>日宫 <b>{{ xiaoLiuRenPayload.day_palace.name }}</b></span>
+            <span>落宫 <b>{{ xiaoLiuRenPayload.final_palace.name }}</b></span>
+            <span>时支 <b>{{ xiaoLiuRenPayload.hour_zhi }}</b></span>
+          </template>
+          <template v-else-if="meiHuaPayload">
+            <span>本卦 <b>{{ meiHuaPayload.ben_gua.name }}</b></span>
+            <span>互卦 <b>{{ meiHuaPayload.hu_gua.name }}</b></span>
+            <span>变卦 <b>{{ meiHuaPayload.bian_gua.name }}</b></span>
+            <span>动爻 <b>第{{ meiHuaPayload.moving_line }}爻</b></span>
+            <span>体用 <b>{{ meiHuaPayload.relation }}</b></span>
+          </template>
+          <template v-else-if="qiMenPayload">
+            <span>局 <b>{{ qiMenPayload.dun }}{{ qiMenPayload.ju }}局</b></span>
+            <span>节气 <b>{{ qiMenPayload.solar_term }}{{ qiMenPayload.yuan }}</b></span>
+            <span>值符 <b>{{ qiMenPayload.zhi_fu }}</b></span>
+            <span>值使 <b>{{ qiMenPayload.zhi_shi }}</b></span>
+            <span>空亡 <b>{{ qiMenPayload.kong.join('、') }}</b></span>
+            <span>马星 <b>{{ qiMenPayload.horse }}</b></span>
+          </template>
           <span>引擎 <b>{{ chart.engine_version }}</b></span>
-          <span class="scroll-hint">{{ liuyaoPayload ? '盘面可左右滑动查看变卦' : '盘面可左右滑动查看' }}</span>
+          <span v-if="liuyaoPayload" class="scroll-hint">盘面可左右滑动查看变卦</span>
+          <span v-else-if="daLiuRenPayload" class="scroll-hint">天地盘可左右滑动查看</span>
+          <span v-else-if="ziWeiPayload" class="scroll-hint">十二宫可左右滑动查看</span>
+          <span v-else-if="qiMenPayload" class="scroll-hint">九宫可左右滑动查看</span>
         </div>
 
         <div class="board-scroll">
           <LiuYaoBoard v-if="liuyaoPayload" :payload="liuyaoPayload" :revealed="boardRevealed" />
           <DaLiuRenBoard v-else-if="daLiuRenPayload" :payload="daLiuRenPayload" />
           <ZiWeiBoard v-else-if="ziWeiPayload" :payload="ziWeiPayload" />
+          <XiaoLiuRenBoard v-else-if="xiaoLiuRenPayload" :payload="xiaoLiuRenPayload" />
+          <MeiHuaBoard v-else-if="meiHuaPayload" :payload="meiHuaPayload" />
+          <QiMenBoard v-else-if="qiMenPayload" :payload="qiMenPayload" />
         </div>
 
         <div v-if="liuyaoPayload && (chart.entropy || mode === 'coin')" class="entropy">
@@ -1501,31 +1904,15 @@ function formatTime(iso: string): string {
       </div>
 
       <div v-else class="empty-board">
-        <div class="empty-seal">{{ method === 'daliuren' ? '未课' : method === 'ziwei' ? '未盘' : '未占' }}</div>
+        <div class="empty-seal">{{ emptyCopy.seal }}</div>
         <div class="empty-copy">
-          <p class="empty-hint">
-            {{ method === 'daliuren' ? '定此刻 · 起一课' : method === 'ziwei' ? '填生辰 · 安一盘' : '心诚则灵 · 先问一事' }}
-          </p>
+          <p class="empty-hint">{{ emptyCopy.hint }}</p>
           <ol class="empty-steps">
-            <li>
-              <i>一</i>
+            <li v-for="(step, index) in emptyCopy.steps" :key="step[0]">
+              <i>{{ CN_NUMS[index] }}</i>
               <div>
-                <b>{{ method === 'daliuren' ? '定时' : method === 'ziwei' ? '生辰' : '问事' }}</b>
-                <em>{{ method === 'daliuren' ? '月将加时，课随刻转' : method === 'ziwei' ? '公历农历皆可，闰月有口径' : '问题越具体，盘越好读' }}</em>
-              </div>
-            </li>
-            <li>
-              <i>二</i>
-              <div>
-                <b>{{ method === 'daliuren' ? '成课' : method === 'ziwei' ? '安星' : '摇卦' }}</b>
-                <em>{{ method === 'daliuren' ? '四课三传，十二天将' : method === 'ziwei' ? '命身十二宫，主辅四化' : '六次铜钱，自下而上' }}</em>
-              </div>
-            </li>
-            <li>
-              <i>三</i>
-              <div>
-                <b>{{ method === 'daliuren' ? '断课' : method === 'ziwei' ? '读盘' : '断卦' }}</b>
-                <em>盘面即事实，AI 只负责说人话</em>
+                <b>{{ step[0] }}</b>
+                <em>{{ step[1] }}</em>
               </div>
             </li>
           </ol>
@@ -1614,7 +2001,7 @@ function formatTime(iso: string): string {
       <header class="followup-head">
         <span class="seal">问</span>
         <h2>同盘追问</h2>
-        <em v-if="followupReady">沿这张{{ method === 'liuyao' ? '卦' : method === 'daliuren' ? '课' : '盘' }}继续，不另起{{ method === 'liuyao' ? '卦' : method === 'daliuren' ? '课' : '盘' }}</em>
+        <em v-if="followupReady">沿这张{{ chartUnit }}继续，不另起{{ chartUnit }}</em>
         <em v-else-if="followupUnlocked">已追问 {{ MAX_FOLLOWUPS }} 轮</em>
         <em v-else>{{ followupLockedText }}</em>
       </header>

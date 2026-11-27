@@ -80,6 +80,9 @@ const title = computed(() => {
   const payload = props.entry.chart.payload
   if (isLiuYaoPayload(payload)) return payload.gua_name
   if ('ke_ti' in payload) return payload.ke_ti
+  if ('final_palace' in payload) return `小六壬 · ${payload.final_palace.name}`
+  if ('ben_gua' in payload) return `梅花 · ${payload.ben_gua.name}`
+  if ('zhi_fu' in payload) return `奇门 · ${payload.dun}${payload.ju}局`
   return `${payload.ming_gong}宫 · ${payload.wu_xing_ju}`
 })
 
@@ -88,6 +91,9 @@ const subtitle = computed(() => {
   if (props.entry.changed_gua) return '之 ' + props.entry.changed_gua
   if (props.entry.method === 'daliuren') return '大六壬课'
   if (props.entry.method === 'ziwei') return '紫微命盘'
+  if (props.entry.method === 'xiaoliuren') return '小六壬课'
+  if (props.entry.method === 'meihua') return '梅花易数卦'
+  if (props.entry.method === 'qimen') return '奇门遁甲局'
   return '六爻卦'
 })
 

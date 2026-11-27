@@ -46,7 +46,7 @@ function Merge-ListArgs([string[]]$InputArgs) {
     $i = 0
     while ($i -lt $InputArgs.Count) {
         $a = $InputArgs[$i]
-        if ($a -eq "-lines" -or $a -eq "-coins") {
+        if ($a -eq "-lines" -or $a -eq "-coins" -or $a -eq "-numbers") {
             $vals = New-Object System.Collections.Generic.List[string]
             $j = $i + 1
             while ($j -lt $InputArgs.Count -and -not $InputArgs[$j].StartsWith("-")) {

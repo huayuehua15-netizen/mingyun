@@ -274,13 +274,20 @@ select:focus {
   gap: 0;
   border-bottom: 1px solid var(--line);
   background: var(--paper);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.method-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .method-tab {
   display: flex;
+  flex: 0 0 auto;
   align-items: baseline;
-  gap: 8px;
-  padding: 12px 22px;
+  gap: 6px;
+  padding: 12px 16px;
   border: 0;
   border-right: 1px solid var(--line);
   background: transparent;

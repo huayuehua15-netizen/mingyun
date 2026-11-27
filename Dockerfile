@@ -23,7 +23,7 @@ RUN cd /src/apps/api \
 FROM ${ALPINE_IMAGE}
 ARG VERSION=0.1.0-dev
 LABEL org.opencontainers.image.title="mingyun" \
-      org.opencontainers.image.description="AI 术数排盘平台（六爻 / 大六壬 / 紫微斗数）" \
+      org.opencontainers.image.description="AI 术数排盘平台（六爻 / 大六壬 / 紫微斗数 / 小六壬 / 梅花 / 奇门）" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.licenses="MIT"
 

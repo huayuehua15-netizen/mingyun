@@ -10,7 +10,7 @@ import (
 )
 
 func TestParseMethod(t *testing.T) {
-	for _, s := range []string{"liuyao", "daliuren", "ziwei"} {
+	for _, s := range []string{"liuyao", "daliuren", "ziwei", "xiaoliuren", "meihua", "qimen"} {
 		m, err := ParseMethod(s)
 		if err != nil {
 			t.Errorf("%s 应可解析: %v", s, err)
@@ -19,8 +19,8 @@ func TestParseMethod(t *testing.T) {
 			t.Errorf("解析结果应为 %s，实为 %s", s, m)
 		}
 	}
-	if _, err := ParseMethod("qimen"); err == nil {
-		t.Error("qimen 尚未支持，应报错")
+	if _, err := ParseMethod("taiyi"); err == nil {
+		t.Error("taiyi 尚未支持，应报错")
 	}
 }
 
@@ -43,7 +43,7 @@ func TestChartValidate(t *testing.T) {
 		mutate func(c Chart) Chart
 		want   string
 	}{
-		{"非法术数", func(c Chart) Chart { c.Method = "qimen"; return c }, "method"},
+		{"非法术数", func(c Chart) Chart { c.Method = "taiyi"; return c }, "method"},
 		{"缺版本", func(c Chart) Chart { c.EngineVersion = ""; return c }, "engine_version"},
 		{"缺盘面", func(c Chart) Chart { c.Payload = nil; return c }, "payload"},
 		{"空事实", func(c Chart) Chart { c.Facts = nil; return c }, "facts"},
@@ -80,7 +80,7 @@ func TestCapabilitiesCoverAllMethods(t *testing.T) {
 		}
 		seen[c.Method] = true
 	}
-	for _, m := range []Method{MethodLiuYao, MethodDaLiuRen, MethodZiWei} {
+	for _, m := range []Method{MethodLiuYao, MethodDaLiuRen, MethodZiWei, MethodXiaoLiuRen, MethodMeiHua, MethodQiMen} {
 		if !seen[m] {
 			t.Errorf("能力清单缺少 %s", m)
 		}

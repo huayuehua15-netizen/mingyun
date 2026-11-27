@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 	_ "time/tzdata" // 内嵌时区库，容器里没有 tzdata 也能解析 Asia/Shanghai
@@ -22,7 +23,10 @@ import (
 	"github.com/huayuehua15-netizen/mingyun/paipan/calendar"
 	"github.com/huayuehua15-netizen/mingyun/paipan/daliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/liuyao"
+	"github.com/huayuehua15-netizen/mingyun/paipan/meihua"
+	"github.com/huayuehua15-netizen/mingyun/paipan/qimen"
 	"github.com/huayuehua15-netizen/mingyun/paipan/schema"
+	"github.com/huayuehua15-netizen/mingyun/paipan/xiaoliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/ziwei"
 )
 
@@ -71,7 +75,7 @@ func usage() {
 用法:
   mingyun version                    输出版本
   mingyun calendar [参数]            计算历法上下文（干支、节气、月将、旬空）
-  mingyun paipan [参数]              三术排盘，输出盘面 JSON
+  mingyun paipan [参数]              六术排盘，输出盘面 JSON
   mingyun serve [参数]               启动 HTTP 服务
 
 历法参数（calendar / paipan 通用）:
@@ -83,8 +87,9 @@ func usage() {
   -boundary string    日界规则 zi_chu | zi_zheng，默认 zi_chu
 
 paipan 参数:
-  -method string      术数：liuyao | daliuren | ziwei
+  -method string      术数：liuyao | daliuren | ziwei | xiaoliuren | meihua | qimen
   -question string    所问之事
+  -numbers string     梅花报数，逗号分隔：3,4 或 3,4,5
   -lines string       六爻，自下而上，逗号分隔：少阳,少阴,老阳,老阴
   -coins string       六组铜钱，逗号分隔，每组三位，1 为背：111,110,100,000,111,100
   -summary            只打印一行摘要，不输出完整 JSON
@@ -166,10 +171,11 @@ func runPaipan(args []string) error {
 	fs := flag.NewFlagSet("paipan", flag.ContinueOnError)
 	var opts calendarOptions
 	opts.register(fs)
-	method := fs.String("method", "liuyao", "术数：liuyao | daliuren | ziwei")
+	method := fs.String("method", "liuyao", "术数：liuyao | daliuren | ziwei | xiaoliuren | meihua | qimen")
 	question := fs.String("question", "", "所问之事")
 	lines := fs.String("lines", "", "六爻：少阳,少阴,老阳,老阴")
 	coins := fs.String("coins", "", "六组铜钱：111,110,100,000,111,100")
+	numbers := fs.String("numbers", "", "梅花报数：3,4 或 3,4,5")
 	summary := fs.Bool("summary", false, "只打印摘要")
 	gender := fs.String("gender", "", "紫微性别：male / female")
 	calendarType := fs.String("calendar", "solar", "紫微历法：solar / lunar")
@@ -192,6 +198,35 @@ func runPaipan(args []string) error {
 			return calErr
 		}
 		chart, err = daliuren.Cast(daliuren.Input{Question: *question}, cal)
+	case "xiaoliuren":
+		cal, calErr := opts.build()
+		if calErr != nil {
+			return calErr
+		}
+		chart, err = xiaoliuren.Cast(xiaoliuren.Input{Question: *question}, cal)
+	case "meihua":
+		cal, calErr := opts.build()
+		if calErr != nil {
+			return calErr
+		}
+		in := meihua.Input{Question: *question, Mode: meihua.ModeTime}
+		if strings.TrimSpace(*numbers) != "" {
+			in.Mode = meihua.ModeNumbers
+			for _, s := range splitList(*numbers) {
+				n, convErr := strconv.Atoi(s)
+				if convErr != nil || n <= 0 {
+					return fmt.Errorf("非法报数 %q", s)
+				}
+				in.Numbers = append(in.Numbers, n)
+			}
+		}
+		chart, err = meihua.Cast(in, cal)
+	case "qimen":
+		cal, calErr := opts.build()
+		if calErr != nil {
+			return calErr
+		}
+		chart, err = qimen.Cast(qimen.Input{Question: *question}, cal)
 	case "ziwei":
 		loc, locErr := time.LoadLocation(opts.tz)
 		if locErr != nil {
@@ -234,7 +269,7 @@ func runPaipan(args []string) error {
 			LeapMonthPolicy: *leapPolicy,
 		}, birth, cal)
 	default:
-		return fmt.Errorf("暂只支持 liuyao、daliuren、ziwei，收到 %q", *method)
+		return fmt.Errorf("暂只支持 liuyao、daliuren、ziwei、xiaoliuren、meihua、qimen，收到 %q", *method)
 	}
 	if err != nil {
 		return err
@@ -247,6 +282,12 @@ func runPaipan(args []string) error {
 		case daliuren.Payload:
 			fmt.Println(p.Summary())
 		case ziwei.Payload:
+			fmt.Println(p.Summary())
+		case xiaoliuren.Payload:
+			fmt.Println(p.Summary())
+		case meihua.Payload:
+			fmt.Println(p.Summary())
+		case qimen.Payload:
 			fmt.Println(p.Summary())
 		}
 		return nil

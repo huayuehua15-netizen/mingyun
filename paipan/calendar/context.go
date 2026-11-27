@@ -19,7 +19,7 @@ type Request struct {
 	DayBoundary DayBoundary
 }
 
-// Context 一次历法计算的全部结果，是三术共用的上下文。
+// Context 一次历法计算的全部结果，是六术共用的上下文。
 type Context struct {
 	SolarTime     time.Time    `json:"solar_time"`
 	TrueSolarTime time.Time    `json:"true_solar_time"`

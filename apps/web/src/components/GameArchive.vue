@@ -59,6 +59,12 @@ function methodLabel(entry: ArchiveEntry): string {
       return '大六壬'
     case 'ziwei':
       return '紫微'
+    case 'xiaoliuren':
+      return '小六壬'
+    case 'meihua':
+      return '梅花'
+    case 'qimen':
+      return '奇门'
     default:
       return '六爻'
   }
@@ -67,13 +73,20 @@ function methodLabel(entry: ArchiveEntry): string {
 function titleOf(entry: ArchiveEntry): string {
   if (entry.title) return entry.title
   if (entry.gua_name) return entry.gua_name
+  const payload = entry.chart.payload
   switch (entry.method || entry.chart.method) {
     case 'daliuren':
-      return entry.chart.payload && 'ke_ti' in entry.chart.payload ? entry.chart.payload.ke_ti : '大六壬课'
+      return payload && 'ke_ti' in payload ? payload.ke_ti : '大六壬课'
     case 'ziwei':
-      return entry.chart.payload && 'wu_xing_ju' in entry.chart.payload
-        ? `${entry.chart.payload.ming_gong}宫 · ${entry.chart.payload.wu_xing_ju}`
+      return payload && 'wu_xing_ju' in payload
+        ? `${payload.ming_gong}宫 · ${payload.wu_xing_ju}`
         : '紫微命盘'
+    case 'xiaoliuren':
+      return payload && 'final_palace' in payload ? `小六壬 · ${payload.final_palace.name}` : '小六壬课'
+    case 'meihua':
+      return payload && 'ben_gua' in payload ? `梅花 · ${payload.ben_gua.name}` : '梅花卦'
+    case 'qimen':
+      return payload && 'zhi_fu' in payload ? `奇门 · ${payload.dun}${payload.ju}局` : '奇门局'
     default:
       return '未名盘'
   }
@@ -284,12 +297,12 @@ function requestClear() {
         </div>
 
         <div v-if="entries[0]" class="archive-latest">
-          <span class="side-kicker">最近一卦</span>
+          <span class="side-kicker">最近一盘</span>
           <h3>{{ titleOf(entries[0]) }}</h3>
           <p>{{ entries[0].question || '未记所问之事' }}</p>
           <dl>
             <div>
-              <dt>起卦</dt>
+              <dt>起盘</dt>
               <dd>{{ formatFullTime(entries[0].cast_at || entries[0].chart.created_at) }}</dd>
             </div>
             <div>
@@ -327,8 +340,8 @@ function requestClear() {
       <div class="archive-empty-seal">空</div>
       <div>
         <h2>尚无卦历</h2>
-        <p>先问一事，摇六次铜钱。卦成之后，盘面与解读会自动收进这里。</p>
-        <button class="seal-btn seal-btn--small" @click="$emit('cast')">去起一卦 <i>→</i></button>
+        <p>先问一事，选一种术数起盘。盘面与解读会自动收进这里。</p>
+        <button class="seal-btn seal-btn--small" @click="$emit('cast')">去起一盘 <i>→</i></button>
       </div>
     </div>
   </section>

@@ -60,6 +60,12 @@ func auditMethodContent(text string, chart schema.Chart, requireSurname bool) []
 		return append(auditGenericContent(text, chart), auditDaLiuRenTerms(text, chart.Facts)...)
 	case schema.MethodZiWei:
 		return append(auditGenericContent(text, chart), auditZiWeiTerms(text, chart.Facts)...)
+	case schema.MethodXiaoLiuRen:
+		return append(auditGenericContent(text, chart), auditXiaoLiuRenTerms(text, chart.Facts)...)
+	case schema.MethodMeiHua:
+		return append(auditGenericContent(text, chart), auditMeiHuaTerms(text, chart.Facts)...)
+	case schema.MethodQiMen:
+		return append(auditGenericContent(text, chart), auditQiMenTerms(text, chart.Facts)...)
 	default:
 		return auditGenericContent(text, chart)
 	}
@@ -125,6 +131,56 @@ func auditZiWeiTerms(text string, facts []schema.Fact) []string {
 					issues = append(issues, "出现盘面事实之外的四化："+claim)
 				}
 			}
+		}
+	}
+	return issues
+}
+
+var xiaoLiuRenPalaces = []string{"大安", "留连", "速喜", "赤口", "小吉", "空亡"}
+
+func auditXiaoLiuRenTerms(text string, facts []schema.Fact) []string {
+	factsText := factsBlob(facts)
+	var issues []string
+	for _, palace := range xiaoLiuRenPalaces {
+		if strings.Contains(text, palace) && !strings.Contains(factsText, palace) {
+			issues = append(issues, "出现盘面事实之外的六宫："+palace)
+		}
+	}
+	return issues
+}
+
+func auditMeiHuaTerms(text string, facts []schema.Fact) []string {
+	factsText := factsBlob(facts)
+	var issues []string
+	// 64 卦名复用六爻的卦名表；梅花只允许出现本卦、互卦、变卦。
+	for _, h := range liuyao.AllHexagrams() {
+		if strings.Contains(text, h.Name) && !strings.Contains(factsText, h.Name) {
+			issues = append(issues, "出现盘面事实之外的卦名："+h.Name)
+		}
+	}
+	for _, trigram := range []string{"乾", "兑", "离", "震", "巽", "坎", "艮", "坤"} {
+		if strings.Contains(text, trigram) && !strings.Contains(factsText, trigram) {
+			issues = append(issues, "出现盘面事实之外的八卦："+trigram)
+		}
+	}
+	return issues
+}
+
+var qiMenStars = []string{"天蓬", "天芮", "天冲", "天辅", "天禽", "天心", "天柱", "天任", "天英"}
+var qiMenDoors = []string{"休门", "生门", "伤门", "杜门", "景门", "死门", "惊门", "开门"}
+var qiMenGods = []string{"值符", "腾蛇", "太阴", "六合", "白虎", "玄武", "九地", "九天"}
+
+func auditQiMenTerms(text string, facts []schema.Fact) []string {
+	factsText := factsBlob(facts)
+	var issues []string
+	for _, term := range append(append(append([]string{}, qiMenStars...), qiMenDoors...), qiMenGods...) {
+		if strings.Contains(text, term) && !strings.Contains(factsText, term) {
+			issues = append(issues, "出现盘面事实之外的奇门元素："+term)
+		}
+	}
+	for _, term := range []string{"阳遁", "阴遁", "上元", "中元", "下元", "马星", "空亡", "门迫"} {
+		if strings.Contains(text, term) && !strings.Contains(factsText, term) {
+			issues = append(issues, "出现盘面事实之外的奇门状态："+term)
 		}
 	}
 	return issues

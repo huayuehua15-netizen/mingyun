@@ -19,6 +19,12 @@ func BuildOfflineReading(chart schema.Chart, question string) string {
 		return buildDaLiuRenOffline(chart, question)
 	case schema.MethodZiWei:
 		return buildZiWeiOffline(chart, question)
+	case schema.MethodXiaoLiuRen:
+		return buildXiaoLiuRenOffline(chart, question)
+	case schema.MethodMeiHua:
+		return buildMeiHuaOffline(chart, question)
+	case schema.MethodQiMen:
+		return buildQiMenOffline(chart, question)
 	}
 	var b strings.Builder
 
@@ -100,6 +106,78 @@ func buildZiWeiOffline(chart schema.Chart, question string) string {
 	b.WriteString("\n## 建议\n")
 	b.WriteString("1. 先核对命宫、身宫、五行局、主星与四化是否与出生信息一致。\n")
 	b.WriteString("2. 把问题收窄到一件具体、可验证的事，避免同时问事业、感情与财运。\n")
+	b.WriteString("3. 在服务端配置 MINGYUN_AI_BASE_URL 与 MINGYUN_AI_MODEL 后重新解读。\n")
+	return b.String()
+}
+
+func buildXiaoLiuRenOffline(chart schema.Chart, question string) string {
+	var b strings.Builder
+	b.WriteString("## 盘面要点\n")
+	b.WriteString("引擎已完成小六壬起课，以下只转录六宫事实：\n")
+	for _, label := range []string{"农历月日", "三宫", "落宫", "近事窗口"} {
+		if v := factValue(chart.Facts, label); v != "" {
+			fmt.Fprintf(&b, "· %s：%s\n", label, v)
+		}
+	}
+	b.WriteString("\n## 断语\n")
+	b.WriteString("离线模式只列六宫，不作吉凶判断。当前没有配置大模型，系统不会伪装成断事结果；")
+	b.WriteString("月宫、日宫、时宫的承接与六宫属性，需要结合所问之事再定。")
+	if q := strings.TrimSpace(question); q != "" {
+		fmt.Fprintf(&b, "你问的是「%s」，建议先把它收窄成一件近期可验证的事。", q)
+	}
+	b.WriteString("\n\n## 应期与走向\n")
+	b.WriteString("离线模式不推应期。近期判断依赖落宫与月日时的承接，仅凭当前事实清单给日期会变成编造。配置模型后可获得这一段解读。\n")
+	b.WriteString("\n## 建议\n")
+	b.WriteString("1. 先核对农历月日、时支与月/日/落宫是否与起课记录一致。\n")
+	b.WriteString("2. 把问题收窄到一件近期可验证的事，避免同时问考试、比赛与感情。\n")
+	b.WriteString("3. 在服务端配置 MINGYUN_AI_BASE_URL 与 MINGYUN_AI_MODEL 后重新解读。\n")
+	return b.String()
+}
+
+func buildMeiHuaOffline(chart schema.Chart, question string) string {
+	var b strings.Builder
+	b.WriteString("## 盘面要点\n")
+	b.WriteString("引擎已完成梅花易数起卦，以下只转录卦象事实：\n")
+	for _, label := range []string{"起卦方式", "本卦", "互卦", "变卦", "动爻", "体用", "体用关系", "变卦关系", "取象提示"} {
+		if v := factValue(chart.Facts, label); v != "" {
+			fmt.Fprintf(&b, "· %s：%s\n", label, v)
+		}
+	}
+	b.WriteString("\n## 断语\n")
+	b.WriteString("离线模式只列卦象，不作吉凶判断。当前没有配置大模型，系统不会伪装成断卦结果；")
+	b.WriteString("本卦、互卦、变卦与体用生克，需要结合所问之事再定。")
+	if q := strings.TrimSpace(question); q != "" {
+		fmt.Fprintf(&b, "你问的是「%s」，建议先把它拆成一件近期可验证的事。", q)
+	}
+	b.WriteString("\n\n## 应期与走向\n")
+	b.WriteString("离线模式不推应期。阶段判断依赖变卦与体用关系，仅凭当前事实清单给日期会变成编造。配置模型后可获得这一段解读。\n")
+	b.WriteString("\n## 建议\n")
+	b.WriteString("1. 先核对本卦、互卦、变卦、动爻与体用是否与起卦记录一致。\n")
+	b.WriteString("2. 把问题收窄到一件具体、可验证的事，避免同时问多个结果。\n")
+	b.WriteString("3. 在服务端配置 MINGYUN_AI_BASE_URL 与 MINGYUN_AI_MODEL 后重新解读。\n")
+	return b.String()
+}
+
+func buildQiMenOffline(chart schema.Chart, question string) string {
+	var b strings.Builder
+	b.WriteString("## 盘面要点\n")
+	b.WriteString("引擎已完成奇门遁甲起局，以下只转录九宫事实：\n")
+	for _, label := range []string{"起局", "四柱", "旬首", "值符", "值使", "时空亡", "马星", "近期考试/比赛参考", "门迫"} {
+		if v := factValue(chart.Facts, label); v != "" {
+			fmt.Fprintf(&b, "· %s：%s\n", label, v)
+		}
+	}
+	b.WriteString("\n## 断语\n")
+	b.WriteString("离线模式只列局盘，不作吉凶判断。当前没有配置大模型，系统不会伪装成断局结果；")
+	b.WriteString("值符值使、用神宫与星门神的组合，需要结合所问之事再定。")
+	if q := strings.TrimSpace(question); q != "" {
+		fmt.Fprintf(&b, "你问的是「%s」，建议先把它收窄成一件近期可验证的事。", q)
+	}
+	b.WriteString("\n\n## 应期与走向\n")
+	b.WriteString("离线模式不推应期。近期判断依赖值使、用神宫、空亡与马星，仅凭当前事实清单给日期会变成编造。配置模型后可获得这一段解读。\n")
+	b.WriteString("\n## 建议\n")
+	b.WriteString("1. 先核对阴阳遁、局数、值符值使与九宫天地盘干是否与起局记录一致。\n")
+	b.WriteString("2. 把问题收窄到一件近期可验证的事，避免同时问考试、比赛与财运。\n")
 	b.WriteString("3. 在服务端配置 MINGYUN_AI_BASE_URL 与 MINGYUN_AI_MODEL 后重新解读。\n")
 	return b.String()
 }

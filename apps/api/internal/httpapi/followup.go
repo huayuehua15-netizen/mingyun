@@ -14,7 +14,10 @@ import (
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/store"
 	"github.com/huayuehua15-netizen/mingyun/paipan/daliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/liuyao"
+	"github.com/huayuehua15-netizen/mingyun/paipan/meihua"
+	"github.com/huayuehua15-netizen/mingyun/paipan/qimen"
 	"github.com/huayuehua15-netizen/mingyun/paipan/schema"
+	"github.com/huayuehua15-netizen/mingyun/paipan/xiaoliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/ziwei"
 )
 
@@ -245,6 +248,45 @@ func restoreChartFacts(chart *schema.Chart) error {
 		facts := ziwei.BuildFacts(payload)
 		if len(facts) == 0 {
 			return errors.New("紫微盘面快照重建 facts 为空")
+		}
+		chart.Facts = facts
+	case schema.MethodXiaoLiuRen:
+		var payload xiaoliuren.Payload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return err
+		}
+		if len(payload.SixPalaces) != 6 || payload.FinalPalace.Name == "" {
+			return errors.New("小六壬盘面快照不完整")
+		}
+		facts := xiaoliuren.BuildFacts(payload)
+		if len(facts) == 0 {
+			return errors.New("小六壬盘面快照重建 facts 为空")
+		}
+		chart.Facts = facts
+	case schema.MethodMeiHua:
+		var payload meihua.Payload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return err
+		}
+		if payload.BenGua.Name == "" || payload.MovingLine < 1 || payload.MovingLine > 6 {
+			return errors.New("梅花易数盘面快照不完整")
+		}
+		facts := meihua.BuildFacts(payload)
+		if len(facts) == 0 {
+			return errors.New("梅花易数盘面快照重建 facts 为空")
+		}
+		chart.Facts = facts
+	case schema.MethodQiMen:
+		var payload qimen.Payload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return err
+		}
+		if len(payload.Palaces) != 9 || payload.ZhiFu == "" {
+			return errors.New("奇门遁甲盘面快照不完整")
+		}
+		facts := qimen.BuildFacts(payload)
+		if len(facts) == 0 {
+			return errors.New("奇门遁甲盘面快照重建 facts 为空")
 		}
 		chart.Facts = facts
 	default:
