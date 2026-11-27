@@ -24,7 +24,7 @@ export function fetchCalendar(at?: string): Promise<CalendarContext> {
 }
 
 export interface CastRequest {
-  mode: 'coin' | 'manual'
+  mode?: 'coin' | 'manual'
   question?: string
   topic?: string
   gender?: string
@@ -35,10 +35,17 @@ export interface CastRequest {
   day_boundary?: 'zi_chu' | 'zi_zheng'
   lines?: string[]
   coins?: number[][]
+  calendar_type?: 'solar' | 'lunar'
+  birth_date?: string
+  birth_time?: string
+  is_leap_month?: boolean
+  leap_month_policy?: 'as_this_month' | 'as_next_month'
 }
 
-export function castLiuYao(req: CastRequest): Promise<ChartView> {
-  return request<ChartView>('/api/v1/charts/liuyao/cast', {
+export type CastMethod = 'liuyao' | 'daliuren' | 'ziwei'
+
+export function castChart(method: CastMethod, req: CastRequest): Promise<ChartView> {
+  return request<ChartView>(`/api/v1/charts/${method}/cast`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -47,6 +54,10 @@ export function castLiuYao(req: CastRequest): Promise<ChartView> {
       ...req
     })
   })
+}
+
+export function castLiuYao(req: CastRequest): Promise<ChartView> {
+  return castChart('liuyao', req)
 }
 
 export type InterpretMode = 'ai' | 'offline'

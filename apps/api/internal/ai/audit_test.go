@@ -324,3 +324,14 @@ func TestAuditReadingRequiresSurnameCandidate(t *testing.T) {
 		t.Fatalf("拦截原因应指出缺少真实姓氏: %s", joined)
 	}
 }
+
+func TestAuditZiWeiAllowsStarSuffixBeforeSihua(t *testing.T) {
+	facts := []schema.Fact{
+		{Key: "sihua", Label: "生年四化", Value: "武曲化权", Weight: schema.WeightCore},
+		{Key: "palace.ming", Label: "命宫", Value: "子 · 破军", Weight: schema.WeightCore},
+	}
+	text := "命宫破军坐守，武曲星化权落在夫妻宫。"
+	if issues := auditZiWeiTerms(text, facts); len(issues) > 0 {
+		t.Fatalf("武曲星化权 不应被误判: %v", issues)
+	}
+}

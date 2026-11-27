@@ -310,9 +310,9 @@ func TestCastCoinClientCoins(t *testing.T) {
 func TestCastErrors(t *testing.T) {
 	ts := newTestEnv(t)
 
-	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/ziwei/cast", `{"mode":"manual"}`, http.StatusForbidden)
-	if env.Code != 10202 {
-		t.Errorf("未开放术数错误码 = %d", env.Code)
+	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/ziwei/cast", `{"mode":"manual"}`, http.StatusBadRequest)
+	if env.Code != 10001 {
+		t.Errorf("缺少出生信息错误码 = %d", env.Code)
 	}
 
 	env = doRequest(t, ts, http.MethodPost, "/api/v1/charts/liuyao/cast", `{"mode":"time"}`, http.StatusBadRequest)
@@ -329,6 +329,67 @@ func TestCastErrors(t *testing.T) {
 	if env.Code != 10001 {
 		t.Errorf("非法 JSON 错误码 = %d", env.Code)
 	}
+}
+
+func TestCastDaLiuRen(t *testing.T) {
+	ts := newTestEnv(t)
+	body := `{"question":"这次考试能否通过？","at":"2026-11-25T14:32:00+08:00","tz":"Asia/Shanghai","use_true_solar_time":false}`
+	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/daliuren/cast", body, http.StatusOK)
+	if env.Code != 0 {
+		t.Fatalf("code = %d, message = %s", env.Code, env.Message)
+	}
+	var view chartView
+	if err := json.Unmarshal(env.Data, &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Method != schema.MethodDaLiuRen {
+		t.Fatalf("method = %q", view.Method)
+	}
+	payload := view.Payload.(map[string]any)
+	tianPan, _ := payload["tian_pan"].([]any)
+	if len(tianPan) != 12 {
+		t.Fatalf("tian_pan = %d", len(tianPan))
+	}
+	sanChuan, _ := payload["san_chuan"].([]any)
+	if len(sanChuan) != 3 {
+		t.Fatalf("san_chuan = %d", len(sanChuan))
+	}
+	if !hasFactLabel(view.Facts, "课体") {
+		t.Fatal("缺少课体事实")
+	}
+}
+
+func TestCastZiWei(t *testing.T) {
+	ts := newTestEnv(t)
+	body := `{"question":"事业方向","gender":"male","calendar_type":"solar","birth_date":"1990-05-15","birth_time":"10:30","tz":"Asia/Shanghai","use_true_solar_time":false}`
+	env := doRequest(t, ts, http.MethodPost, "/api/v1/charts/ziwei/cast", body, http.StatusOK)
+	if env.Code != 0 {
+		t.Fatalf("code = %d, message = %s", env.Code, env.Message)
+	}
+	var view chartView
+	if err := json.Unmarshal(env.Data, &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Method != schema.MethodZiWei {
+		t.Fatalf("method = %q", view.Method)
+	}
+	payload := view.Payload.(map[string]any)
+	palaces, _ := payload["palaces"].([]any)
+	if len(palaces) != 12 {
+		t.Fatalf("palaces = %d", len(palaces))
+	}
+	if !hasFactLabel(view.Facts, "命宫") || !hasFactLabel(view.Facts, "五行局") {
+		t.Fatal("紫微核心事实缺失")
+	}
+}
+
+func hasFactLabel(facts []schema.Fact, label string) bool {
+	for _, f := range facts {
+		if f.Label == label {
+			return true
+		}
+	}
+	return false
 }
 
 func TestGetChart(t *testing.T) {

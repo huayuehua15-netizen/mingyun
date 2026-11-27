@@ -1,5 +1,7 @@
 # 05 · API 接口契约
 
+> 本契约描述 v1 的目标形态。**当前仓库已实现的是无账号的单机版**：三术排盘、盘面读取/列表、历法、能力清单、首轮 SSE 解读与同盘追问；盘面存内存。`/auth/*`、额度、分享、支付、管理后台、Postgres/Redis、`Idempotency-Key` 与 SSE 重连缓冲仍属路线图，调用会 404。下文标注“当前实现”的段落与代码一致，其余为设计目标。
+
 ## 1. 通用约定
 
 | 项 | 约定 |
@@ -43,9 +45,9 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
 | 10501 | 429 | 触发限流，`data.retry_after` 秒 | 倒计时 |
 | 20001 | 500 | 排盘引擎内部错误 | 报错并提示已记录 |
 | 20002 | 500 | 数据库不可用 | 提示稍后 |
-| 30001 | 502 | 模型服务不可用（已尝试全部降级） | 显示"解读暂不可用"，盘面仍可看 |
-| 30002 | 504 | 模型超时 | 同上 |
-| 30003 | 502 | 模型返回内容不合规（触发输出校验） | 提示重试，记录日志 |
+| 30001 | 502 | 模型服务不可用、鉴权失败或超时 | 显示"解读暂不可用"，盘面仍可看 |
+| 30002 | 502 | 解读未通过盘面事实校验，已整段拦截 | 提示重试，记录日志 |
+| 30003 | 503 | 未配置模型，追问不可用（首轮离线摘要仍可查看） | 引导配置模型或另起新盘 |
 | 40001 | 403 | 管理员权限不足 | — |
 
 ## 2. 认证
@@ -103,13 +105,69 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
 
 `mode=coin` 且 `coins`、`backs` 都不传时，服务端用 `crypto/rand` 摇卦，并在响应里返回 `entropy`（`entropy_id` / `backs` / `entropy_proof` / `source` / `created_at`），供用户复核"这一卦不是后台编的"。客户端自带铜钱时不产生 `entropy`，因为此时随机性不在服务端。
 
-`mode=time`（梅花时间起卦）v0.1 尚未实现，返回业务码 10202，不要当作参数错误。
+`mode=time`（梅花时间起卦）v0.1 尚未实现，当前会按参数错误返回 10001；不要把它当日历计算失败。
 
-**大六壬请求字段**：`at`、`tz`、`lon`、`question`、`school`（流派开关）。
+**大六壬请求字段**
 
-**紫微请求字段**：`gender`、`calendar_type`、`birth_date`、`birth_time`、`is_leap_month`、`leap_month_policy`、`tz`、`lon`、`question`。
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| question | string | 解读时必填 | ≤ 200 字。起课接口允许为空以便先存盘，但首轮解读会返回 10001 “请先填写所问之事” |
+| at | string | 否 | RFC3339 带偏移；缺省为服务端当前时刻（按 tz 解释）。月将加时依赖它 |
+| tz | string | 否 | 默认 `Asia/Shanghai` |
+| lon | float | 否 | 东经度数，默认 120；启用真太阳时必须有值 |
+| use_true_solar_time | bool | 否 | 默认 true |
+| day_boundary | enum | 否 | `zi_chu` / `zi_zheng`，默认 `zi_chu` |
+| school | object | 否 | 流派开关，当前识别 `sanchuan`、`shehai`、`fuyin_zhongmo`、`fanyin_chuchuan`、`guiren`；盘面原样记录 |
 
-**响应**：`chart_id`、`method`、`engine_version`、`question`、`calendar`、`school`、`payload`、`facts`（服务端默认只回 `weight=core` 的 facts，完整清单 `GET /charts/{id}` 可取）、`warnings`、`entropy`（如为服务端摇卦）、`created_at`。六爻 `payload.use_shen` 返回规则引擎的取用神结果，含 `topic`、`topic_label`、`rule_id`、`confidence`、`primary`、`secondary`、`taboo`、`rationale`、`candidates`；测姓类额外含 `surname_hints`。`facts` 中同步给出「问事类别」「用神」两条 core 事实，测姓类再加「姓氏候选」。
+**大六壬响应 payload**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| tian_pan | object[12] | 十二地盘宫。每项含 `earth`（地盘支）、`heaven`（天盘支）、`heaven_wuxing`、`liu_qin`、`tian_jiang`、`shen_sha[]` |
+| si_ke | object[4] | 四课：`index`、`name`、`upper`（上神）、`lower`（下神）、`lower_wuxing`、`upper_wuxing`、`relation`（生克关系） |
+| san_chuan | object[3] | 初/中/末传：`index`、`name`、`branch`、`palace`、`tian_jiang`、`liu_qin` |
+| ke_ti | string | 课体，如 `贼克`、`重审` |
+| gate | string | 九宗门判门结果，如 `贼克` |
+| month_general | object | 月将：`zhi`、`name`、`after_term`（节气后说明） |
+| hour_zhi | string | 占时地支 |
+| day_gan / day_zhi | string | 日干、日支；`day_gan` 序列化为中文天干，不是数字 |
+| xun_kong | string[2] | 旬空两支 |
+| shen_sha | object[] | 全局神煞：`name`、`zhi`、`value`（如驿马在亥） |
+
+**紫微请求字段**
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| gender | enum | 是 | `male` / `female`；也接受 `男` / `女` / `乾` / `坤` 并归一化 |
+| calendar_type | enum | 否 | `solar`（默认）/ `lunar` |
+| birth_date | string | 是 | `YYYY-MM-DD`；农历输入时同样按该格式填农历年月日 |
+| birth_time | string | 是 | `HH:MM` 或 `HH:MM:SS`；23:00–23:59 晚子时归次日 |
+| is_leap_month | bool | 否 | 仅农历输入有意义；表示 `birth_date` 的月份是闰月 |
+| leap_month_policy | enum | 否 | `as_this_month`（默认）/ `as_next_month`，仅闰月时参与命宫月份计算 |
+| question | string | 否 | ≤ 200 字。为空时首轮解读自动补“看整体格局”的默认问题 |
+| tz | string | 否 | 默认 `Asia/Shanghai` |
+| lon | float | 否 | 东经度数，默认 120 |
+| use_true_solar_time | bool | 否 | 默认 true。紫微在 `ParseBirth` 内先归一化，构建历法上下文时不会二次校正 |
+| day_boundary | enum | 否 | `zi_chu` / `zi_zheng`，默认 `zi_chu` |
+| school | object | 否 | 当前记录 `sihua=standard` 与 `geng=tiantong_ke_taiyin_ji` |
+
+**紫微响应 payload**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| palaces | object[12] | 十二宫：`branch`、`stem`、`stem_branch`、`name`、`major_stars[]`、`minor_stars[]`、`sihua[]`、`daxian_range` |
+| ming_gong / shen_gong | string | 命宫、身宫地支 |
+| wu_xing_ju | string | 五行局，如 `火六局` |
+| ziwei_pos / tianfu_pos | string | 紫微、天府所在宫 |
+| sihua_year | object[] | 生年四化：`gan`、`star`、`hua` |
+| da_xian | object[12] | 大限：`index`、`name`、`branch`、`start_age`、`end_age`、`range` |
+| lunar_date | string | 如 `庚午年四月廿一` |
+| solar_date | string | 归一化后的公历时刻，已含真太阳时/晚子时结果 |
+| year_gz | string | 生年干支 |
+
+**响应**：`chart_id`、`method`、`engine_version`、`question`、`calendar`、`school`、`payload`、`facts`（服务端默认只回 `weight=core` 的 facts，完整清单 `GET /charts/{id}` 可取）、`warnings`、`entropy`（仅六爻服务端摇卦）、`created_at`。六爻 `payload.use_shen` 返回规则引擎的取用神结果，含 `topic`、`topic_label`、`rule_id`、`confidence`、`primary`、`secondary`、`taboo`、`rationale`、`candidates`；测姓类额外含 `surname_hints`。`facts` 中同步给出「问事类别」「用神」两条 core 事实，测姓类再加「姓氏候选」。
+
+> 当前 `chartView` 不单独返回 `input`；归一化后的出生信息在 `payload`（紫微）或 `calendar` 中可见。`calendar` 对紫微记录的是归一化后的公历时刻与节气，不是原始输入。
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -129,6 +187,10 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
 | POST | `/messages/{id}/feedback` | 1–5 星 + 原因 |
 
 请求体（首轮）：`question`、`style`（`plain` 白话 / `classic` 文言夹杂）、`tier_override`（仅管理员可指定）、`max_tokens`（可选，受服务端上限约束）。
+
+- `question` 为空时先回退到盘面创建时的问题；紫微仍为空则补默认问题“请以这张命盘，看整体格局、当下值得注意的方向。”；大六壬为空直接 10001。
+- 服务端按 `chart.method` 选择提示词与审计规则：六爻查卦名/爻位/六亲/世应/动爻；大六壬查课体/三传/天将越界；紫微查星曜/四化越界。三术共用绝对化措辞拦截。
+- 默认 `max_tokens` 来自服务端环境变量；紫微最低 2400、大六壬最低 2200，即使请求传了更小的值也会被抬高，上限仍为 8192。
 
 请求体（追问，当前实现）：
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ArchiveEntry, ArchiveStatus, LinePayload } from '../types'
+import { isLiuYaoPayload } from '../types'
 
 const props = defineProps<{
   entry: ArchiveEntry
@@ -60,11 +61,39 @@ function lineChange(line: LinePayload): string {
 }
 
 function useShenText(item: ArchiveEntry): string {
-  const plan = item.chart.payload.use_shen
+  const payload = item.chart.payload
+  if (!isLiuYaoPayload(payload)) return '非六爻盘'
+  const plan = payload.use_shen
   if (!plan) return '未定用神'
   const primary = plan.primary?.length ? plan.primary.join('、') : '—'
   return `${plan.topic_label} · ${plan.rule_id} · 主用神 ${primary}`
 }
+
+const liuyao = computed(() => {
+  const payload = props.entry.chart.payload
+  return isLiuYaoPayload(payload) ? payload : null
+})
+
+const title = computed(() => {
+  if (props.entry.title) return props.entry.title
+  if (props.entry.gua_name) return props.entry.gua_name
+  const payload = props.entry.chart.payload
+  if (isLiuYaoPayload(payload)) return payload.gua_name
+  if ('ke_ti' in payload) return payload.ke_ti
+  return `${payload.ming_gong}宫 · ${payload.wu_xing_ju}`
+})
+
+const subtitle = computed(() => {
+  if (props.entry.subtitle) return props.entry.subtitle
+  if (props.entry.changed_gua) return '之 ' + props.entry.changed_gua
+  if (props.entry.method === 'daliuren') return '大六壬课'
+  if (props.entry.method === 'ziwei') return '紫微命盘'
+  return '六爻卦'
+})
+
+const methodFacts = computed(() =>
+  props.entry.chart.facts.filter((f) => f.weight === 'core' || f.weight === 'normal').slice(0, 16)
+)
 
 interface ReadingSections {
   overview: string
@@ -119,7 +148,11 @@ function parseReading(text: string): ReadingSections {
   return out
 }
 
-const lines = computed(() => [...props.entry.chart.payload.lines].sort((a, b) => b.position - a.position))
+const lines = computed(() => {
+  const payload = liuyao.value
+  if (!payload) return []
+  return [...payload.lines].sort((a, b) => b.position - a.position)
+})
 const reading = computed(() => parseReading(props.entry.reading))
 const followupTurns = computed(() => props.entry.followups ?? [])
 const followupRounds = computed(
@@ -136,11 +169,11 @@ const followupRounds = computed(
       <div class="archive-detail-copy">
         <div class="archive-detail-kicker">
           <span :class="statusClass(entry)">{{ statusLabel(entry) }}</span>
-          <em>{{ entry.topic_label || '未分类' }}</em>
+          <em>{{ entry.topic_label || subtitle }}</em>
         </div>
         <h2>
-          {{ entry.gua_name }}
-          <i v-if="entry.changed_gua">→ {{ entry.changed_gua }}</i>
+          {{ title }}
+          <i>{{ subtitle }}</i>
         </h2>
         <p>{{ entry.question || '未记所问之事' }}</p>
       </div>
@@ -159,25 +192,25 @@ const followupRounds = computed(
       </div>
     </header>
 
-    <dl class="archive-detail-facts">
+    <dl v-if="liuyao" class="archive-detail-facts">
       <div>
         <dt>卦体</dt>
         <dd>
-          {{ entry.chart.payload.upper }}上{{ entry.chart.payload.lower }}下 ·
-          {{ entry.chart.payload.palace }}
+          {{ liuyao.upper }}上{{ liuyao.lower }}下 ·
+          {{ liuyao.palace }}
         </dd>
       </div>
       <div>
         <dt>世应</dt>
-        <dd>世 {{ yaoLabel(entry.chart.payload.shi_yao) }} · 应 {{ yaoLabel(entry.chart.payload.ying_yao) }}</dd>
+        <dd>世 {{ yaoLabel(liuyao.shi_yao) }} · 应 {{ yaoLabel(liuyao.ying_yao) }}</dd>
       </div>
       <div>
         <dt>月建 / 日辰</dt>
-        <dd>{{ entry.chart.payload.month_gz }} / {{ entry.chart.payload.day_gz }}</dd>
+        <dd>{{ liuyao.month_gz }} / {{ liuyao.day_gz }}</dd>
       </div>
       <div>
         <dt>旬空</dt>
-        <dd>{{ entry.chart.payload.xun_kong.join('、') }}</dd>
+        <dd>{{ liuyao.xun_kong.join('、') }}</dd>
       </div>
       <div class="archive-fact-wide">
         <dt>用神</dt>
@@ -185,7 +218,7 @@ const followupRounds = computed(
       </div>
       <div>
         <dt>六亲</dt>
-        <dd>{{ entry.chart.payload.lines.map((line) => line.liu_qin).join(' · ') }}</dd>
+        <dd>{{ liuyao.lines.map((line) => line.liu_qin).join(' · ') }}</dd>
       </div>
       <div>
         <dt>起卦时间</dt>
@@ -197,7 +230,22 @@ const followupRounds = computed(
       </div>
     </dl>
 
-    <div class="archive-lines">
+    <dl v-else class="archive-detail-facts">
+      <div v-for="f in methodFacts" :key="f.key" :class="{ 'archive-fact-wide': f.weight === 'core' }">
+        <dt>{{ f.label }}</dt>
+        <dd>{{ f.value }}</dd>
+      </div>
+      <div>
+        <dt>起盘时间</dt>
+        <dd>{{ formatFullTime(entry.cast_at || entry.chart.created_at) }}</dd>
+      </div>
+      <div>
+        <dt>解读时间</dt>
+        <dd>{{ entry.read_at ? formatFullTime(entry.read_at) : '尚未解读' }}</dd>
+      </div>
+    </dl>
+
+    <div v-if="liuyao" class="archive-lines">
       <header class="archive-lines-head">
         <h3>六爻盘</h3>
         <em>自上而下 · 变爻单列</em>

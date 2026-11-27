@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,11 +12,14 @@ import (
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/entropy"
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/store"
 	"github.com/huayuehua15-netizen/mingyun/paipan/calendar"
+	"github.com/huayuehua15-netizen/mingyun/paipan/daliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/liuyao"
 	"github.com/huayuehua15-netizen/mingyun/paipan/schema"
+	"github.com/huayuehua15-netizen/mingyun/paipan/ziwei"
 )
 
-// castRequest 六爻排盘请求，字段见 docs/05 3.3。
+// castRequest 三术共用的排盘请求。六爻使用 mode/coins/lines；大六壬使用 at；
+// 紫微使用 gender/calendar_type/birth_date/birth_time 等出生信息。
 type castRequest struct {
 	Mode             string            `json:"mode"`
 	Question         string            `json:"question"`
@@ -30,6 +34,11 @@ type castRequest struct {
 	Coins            *[6][3]int        `json:"coins"`
 	Backs            *[6]int           `json:"backs"`
 	School           map[string]string `json:"school"`
+	CalendarType     string            `json:"calendar_type,omitempty"`
+	BirthDate        string            `json:"birth_date,omitempty"`
+	BirthTime        string            `json:"birth_time,omitempty"`
+	IsLeapMonth      bool              `json:"is_leap_month,omitempty"`
+	LeapMonthPolicy  string            `json:"leap_month_policy,omitempty"`
 }
 
 // chartView 返回给前端的盘面。fullFacts=false 时只回 core 事实。
@@ -53,15 +62,6 @@ func (s *Server) handleCast(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, r, badRequest("不支持的术数", map[string]string{"method": r.PathValue("method")}))
 		return
 	}
-	if method != schema.MethodLiuYao {
-		writeAPIError(w, r, &apiError{
-			Status:  http.StatusForbidden,
-			Code:    10202,
-			Message: "该术数尚未开放",
-			Data:    map[string]any{"method": method},
-		})
-		return
-	}
 
 	var req castRequest
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
@@ -70,16 +70,60 @@ func (s *Server) handleCast(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, r, badRequest("请求体不是合法 JSON", nil))
 		return
 	}
-
 	if utf8.RuneCountInString(req.Question) > 200 {
 		writeAPIError(w, r, badRequest("问题不得超过 200 字", map[string]string{"question": "too long"}))
 		return
 	}
 
+	var chart schema.Chart
+	var toss *entropy.Toss
+	var apiErr *apiError
+	switch method {
+	case schema.MethodLiuYao:
+		chart, toss, apiErr = s.castLiuYaoChart(req)
+	case schema.MethodDaLiuRen:
+		chart, apiErr = s.castDaLiuRenChart(req)
+	case schema.MethodZiWei:
+		chart, apiErr = s.castZiWeiChart(req)
+	default:
+		apiErr = &apiError{
+			Status:  http.StatusForbidden,
+			Code:    10202,
+			Message: "该术数尚未开放",
+			Data:    map[string]any{"method": method},
+		}
+	}
+	if apiErr != nil {
+		writeAPIError(w, r, apiErr)
+		return
+	}
+
+	chartID := newChartID()
+	chart.ChartID = chartID
+	createdAt := s.now().UTC()
+	chart.CreatedAt = createdAt
+
+	rec := store.Record{
+		ChartID:   chartID,
+		Method:    chart.Method,
+		Question:  strings.TrimSpace(req.Question),
+		Summary:   summaryText(chart.Payload),
+		Chart:     chart,
+		CreatedAt: createdAt,
+		Entropy:   toss,
+	}
+	if err := s.store.Save(rec); err != nil {
+		writeAPIError(w, r, &apiError{Status: http.StatusInternalServerError, Code: 20001, Message: "保存盘面失败"})
+		return
+	}
+
+	writeOK(w, r, newChartView(rec, false))
+}
+
+func (s *Server) castLiuYaoChart(req castRequest) (schema.Chart, *entropy.Toss, *apiError) {
 	mode := liuyao.Mode(req.Mode)
 	if mode != liuyao.ModeCoin && mode != liuyao.ModeManual {
-		writeAPIError(w, r, badRequest("mode 只能是 coin 或 manual", map[string]string{"mode": req.Mode}))
-		return
+		return schema.Chart{}, nil, badRequest("mode 只能是 coin 或 manual", map[string]string{"mode": req.Mode})
 	}
 
 	in := liuyao.Input{
@@ -93,46 +137,39 @@ func (s *Server) handleCast(w http.ResponseWriter, r *http.Request) {
 	switch mode {
 	case liuyao.ModeManual:
 		if len(req.Lines) != 6 {
-			writeAPIError(w, r, badRequest("手动录入需提供 6 个 lines", map[string]string{"lines": "need 6"}))
-			return
+			return schema.Chart{}, nil, badRequest("手动录入需提供 6 个 lines", map[string]string{"lines": "need 6"})
 		}
 		for _, s := range req.Lines {
 			kind, err := liuyao.ParseLineKind(strings.TrimSpace(s))
 			if err != nil {
-				writeAPIError(w, r, badRequest("无法识别的爻形："+s, map[string]string{"lines": s}))
-				return
+				return schema.Chart{}, nil, badRequest("无法识别的爻形："+s, map[string]string{"lines": s})
 			}
 			in.Lines = append(in.Lines, kind)
 		}
 	case liuyao.ModeCoin:
 		switch {
 		case req.Coins != nil && req.Backs != nil:
-			writeAPIError(w, r, badRequest("coins 与 backs 只能提供一个", nil))
-			return
+			return schema.Chart{}, nil, badRequest("coins 与 backs 只能提供一个", nil)
 		case req.Coins != nil:
 			backs, apiErr := backsFromCoins(*req.Coins)
 			if apiErr != nil {
-				writeAPIError(w, r, apiErr)
-				return
+				return schema.Chart{}, nil, apiErr
 			}
 			in.Backs = backs
 		case req.Backs != nil:
 			for i, v := range *req.Backs {
 				if v < 0 || v > 3 {
-					writeAPIError(w, r, badRequest("背数必须在 0—3 之间", map[string]string{"backs": strconv.Itoa(i + 1)}))
-					return
+					return schema.Chart{}, nil, badRequest("背数必须在 0—3 之间", map[string]string{"backs": strconv.Itoa(i + 1)})
 				}
 			}
 			in.Backs = *req.Backs
 		default:
 			if s.entropy == nil {
-				writeAPIError(w, r, &apiError{Status: http.StatusInternalServerError, Code: 20001, Message: "随机源未配置"})
-				return
+				return schema.Chart{}, nil, &apiError{Status: http.StatusInternalServerError, Code: 20001, Message: "随机源未配置"}
 			}
 			t, err := s.entropy.Toss()
 			if err != nil {
-				writeAPIError(w, r, &apiError{Status: http.StatusInternalServerError, Code: 20001, Message: "摇卦失败"})
-				return
+				return schema.Chart{}, nil, &apiError{Status: http.StatusInternalServerError, Code: 20001, Message: "摇卦失败"}
 			}
 			toss = &t
 			in.Backs = t.Backs
@@ -147,41 +184,119 @@ func (s *Server) handleCast(w http.ResponseWriter, r *http.Request) {
 		boundary:  req.DayBoundary,
 	})
 	if apiErr != nil {
-		writeAPIError(w, r, apiErr)
-		return
+		return schema.Chart{}, nil, apiErr
 	}
-
 	chart, err := liuyao.Cast(in, cal)
 	if err != nil {
-		writeAPIError(w, r, badRequest("排盘失败："+err.Error(), nil))
-		return
+		return schema.Chart{}, nil, badRequest("排盘失败："+err.Error(), nil)
+	}
+	return chart, toss, nil
+}
+
+func (s *Server) castDaLiuRenChart(req castRequest) (schema.Chart, *apiError) {
+	cal, apiErr := s.buildCalendar(calendarQuery{
+		at:        req.At,
+		tz:        req.TZ,
+		lon:       req.Lon,
+		trueSolar: req.UseTrueSolarTime,
+		boundary:  req.DayBoundary,
+	})
+	if apiErr != nil {
+		return schema.Chart{}, apiErr
+	}
+	chart, err := daliuren.Cast(daliuren.Input{
+		Question: strings.TrimSpace(req.Question),
+		School:   req.School,
+	}, cal)
+	if err != nil {
+		return schema.Chart{}, badRequest("大六壬排盘失败："+err.Error(), nil)
+	}
+	return chart, nil
+}
+
+func (s *Server) castZiWeiChart(req castRequest) (schema.Chart, *apiError) {
+	tz := req.TZ
+	if tz == "" {
+		tz = defaultTZ
+	}
+	loc, loadErr := time.LoadLocation(tz)
+	if loadErr != nil {
+		return schema.Chart{}, badRequest("时区无法识别", map[string]string{"tz": tz})
 	}
 
-	chartID := newChartID()
-	chart.ChartID = chartID
-	createdAt := s.now().UTC()
-	chart.CreatedAt = createdAt
-
-	summary := ""
-	if p, ok := chart.Payload.(liuyao.Payload); ok {
-		summary = p.Summary()
+	lon := defaultLon
+	if req.Lon != nil {
+		lon = *req.Lon
+	}
+	if lon < -180 || lon > 180 {
+		return schema.Chart{}, badRequest("经度应在 -180 到 180 之间", map[string]string{"lon": strconv.FormatFloat(lon, 'f', 2, 64)})
+	}
+	trueSolar := true
+	if req.UseTrueSolarTime != nil {
+		trueSolar = *req.UseTrueSolarTime
 	}
 
-	rec := store.Record{
-		ChartID:   chartID,
-		Method:    chart.Method,
-		Question:  in.Question,
-		Summary:   summary,
-		Chart:     chart,
-		CreatedAt: createdAt,
-		Entropy:   toss,
-	}
-	if err := s.store.Save(rec); err != nil {
-		writeAPIError(w, r, &apiError{Status: http.StatusInternalServerError, Code: 20001, Message: "保存盘面失败"})
-		return
+	birth, err := ziwei.ParseBirth(ziwei.Input{
+		Gender:          strings.TrimSpace(req.Gender),
+		CalendarType:    strings.TrimSpace(req.CalendarType),
+		BirthDate:       strings.TrimSpace(req.BirthDate),
+		BirthTime:       strings.TrimSpace(req.BirthTime),
+		IsLeapMonth:     req.IsLeapMonth,
+		LeapMonthPolicy: strings.TrimSpace(req.LeapMonthPolicy),
+	}, ziwei.BirthOptions{
+		Location:         loc,
+		Longitude:        lon,
+		HasLongitude:     true,
+		UseTrueSolarTime: trueSolar,
+	})
+	if err != nil {
+		return schema.Chart{}, badRequest("出生信息无法排盘："+err.Error(), nil)
 	}
 
-	writeOK(w, r, newChartView(rec, false))
+	// birth.SolarTime 已经按真太阳时/晚子时归一化，这里不再二次校正。
+	falseVal := false
+	cal, apiErr := s.buildCalendar(calendarQuery{
+		at:        birth.SolarTime.Format(time.RFC3339),
+		tz:        tz,
+		trueSolar: &falseVal,
+		boundary:  req.DayBoundary,
+	})
+	if apiErr != nil {
+		return schema.Chart{}, apiErr
+	}
+	if birth.TrueSolarUsed {
+		cal.TrueSolarUsed = true
+		cal.TrueSolarTime = birth.SolarTime
+		cal.Warnings = append(cal.Warnings, fmt.Sprintf("紫微生盘已按真太阳时校正（经度 %.2f°）", lon))
+	}
+
+	chart, castErr := ziwei.Cast(ziwei.Input{
+		Question:        strings.TrimSpace(req.Question),
+		Gender:          strings.TrimSpace(req.Gender),
+		CalendarType:    strings.TrimSpace(req.CalendarType),
+		BirthDate:       strings.TrimSpace(req.BirthDate),
+		BirthTime:       strings.TrimSpace(req.BirthTime),
+		IsLeapMonth:     req.IsLeapMonth,
+		LeapMonthPolicy: strings.TrimSpace(req.LeapMonthPolicy),
+		School:          req.School,
+	}, birth, cal)
+	if castErr != nil {
+		return schema.Chart{}, badRequest("紫微排盘失败："+castErr.Error(), nil)
+	}
+	return chart, nil
+}
+
+func summaryText(payload any) string {
+	switch p := payload.(type) {
+	case liuyao.Payload:
+		return p.Summary()
+	case daliuren.Payload:
+		return p.Summary()
+	case ziwei.Payload:
+		return p.Summary()
+	default:
+		return ""
+	}
 }
 
 func (s *Server) handleGetChart(w http.ResponseWriter, r *http.Request) {

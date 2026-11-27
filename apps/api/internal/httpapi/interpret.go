@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/ai"
+	"github.com/huayuehua15-netizen/mingyun/paipan/schema"
 )
 
 type interpretRequest struct {
@@ -74,6 +75,9 @@ func (s *Server) handleInterpret(w http.ResponseWriter, r *http.Request) {
 	rawQuestion := strings.TrimSpace(req.Question)
 	if rawQuestion == "" {
 		rawQuestion = strings.TrimSpace(rec.Question)
+	}
+	if rawQuestion == "" && rec.Chart.Method == schema.MethodZiWei {
+		rawQuestion = "请以这张命盘，看整体格局、当下值得注意的方向。"
 	}
 	if rawQuestion == "" {
 		writeAPIError(w, r, badRequest("请先填写所问之事", map[string]string{"question": "empty"}))
@@ -140,6 +144,17 @@ func (s *Server) handleInterpret(w http.ResponseWriter, r *http.Request) {
 	maxTokens := s.aiClient.MaxTokens()
 	if req.MaxTokens > 0 {
 		maxTokens = req.MaxTokens
+	}
+	// 紫微/大六壬的盘面事实比六爻长，默认 1800 tokens 容易在末段被截断。
+	switch rec.Chart.Method {
+	case schema.MethodZiWei:
+		if maxTokens < 2400 {
+			maxTokens = 2400
+		}
+	case schema.MethodDaLiuRen:
+		if maxTokens < 2200 {
+			maxTokens = 2200
+		}
 	}
 	if maxTokens > 8192 {
 		maxTokens = 8192

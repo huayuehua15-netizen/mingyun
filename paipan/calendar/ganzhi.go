@@ -118,6 +118,23 @@ func (z Zhi) YinYang() YinYang {
 	return Yin
 }
 
+// MarshalJSON 让天干以中文名序列化，而不是数字。
+func (g Gan) MarshalJSON() ([]byte, error) { return json.Marshal(g.String()) }
+
+// UnmarshalJSON 支持从中文名解析天干。
+func (g *Gan) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	parsed, err := ParseGan(s)
+	if err != nil {
+		return err
+	}
+	*g = parsed
+	return nil
+}
+
 // MarshalJSON 让地支以中文名序列化，而不是数字。
 func (z Zhi) MarshalJSON() ([]byte, error) { return json.Marshal(z.String()) }
 

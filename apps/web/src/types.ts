@@ -120,6 +120,130 @@ export interface LiuYaoPayload {
   use_shen?: UseShenPlan
 }
 
+export interface DaLiuRenTianPan {
+  earth: string
+  heaven: string
+  heaven_wuxing: string
+  liu_qin: string
+  tian_jiang: string
+  shen_sha?: string[]
+}
+
+export interface DaLiuRenSiKe {
+  index: number
+  name: string
+  lower: string
+  upper: string
+  lower_wuxing: string
+  upper_wuxing: string
+  relation: string
+}
+
+export interface DaLiuRenChuan {
+  index: number
+  name: string
+  branch: string
+  palace: string
+  tian_jiang: string
+  liu_qin: string
+}
+
+export interface DaLiuRenShenSha {
+  name: string
+  zhi: string
+  value: string
+}
+
+export interface DaLiuRenPayload {
+  question?: string
+  month_general: MonthGeneral
+  hour_zhi: string
+  day_gan: string
+  day_zhi: string
+  month_zhi: string
+  xun_kong: [string, string]
+  tian_pan: DaLiuRenTianPan[]
+  si_ke: DaLiuRenSiKe[]
+  san_chuan: DaLiuRenChuan[]
+  ke_ti: string
+  gate: string
+  shen_sha?: DaLiuRenShenSha[]
+  school?: Record<string, string>
+}
+
+export interface ZiWeiStar {
+  name: string
+  kind: string
+  hua?: string
+}
+
+export interface ZiWeiSihua {
+  gan: string
+  star: string
+  hua: string
+}
+
+export interface ZiWeiDaXian {
+  index: number
+  name: string
+  branch: string
+  start_age: number
+  end_age: number
+  range: string
+}
+
+export interface ZiWeiPalace {
+  index: number
+  branch: string
+  stem: string
+  stem_branch: string
+  name: string
+  is_ming?: boolean
+  is_shen?: boolean
+  major_stars?: ZiWeiStar[]
+  minor_stars?: ZiWeiStar[]
+  sihua?: string[]
+  daxian_start?: number
+  daxian_end?: number
+  daxian_range?: string
+}
+
+export interface ZiWeiPayload {
+  question?: string
+  gender: string
+  calendar_type: string
+  birth_date: string
+  birth_time: string
+  is_leap_month: boolean
+  leap_month_policy: string
+  lunar_date: string
+  solar_date: string
+  year_gz: string
+  ming_gong: string
+  shen_gong: string
+  wu_xing_ju: string
+  ziwei_pos: string
+  tianfu_pos: string
+  palaces: ZiWeiPalace[]
+  da_xian: ZiWeiDaXian[]
+  sihua_year: ZiWeiSihua[]
+  school?: Record<string, string>
+}
+
+export type ChartPayload = LiuYaoPayload | DaLiuRenPayload | ZiWeiPayload
+
+export function isLiuYaoPayload(payload: ChartPayload): payload is LiuYaoPayload {
+  return 'gua_name' in payload && 'lines' in payload
+}
+
+export function isDaLiuRenPayload(payload: ChartPayload): payload is DaLiuRenPayload {
+  return 'tian_pan' in payload && 'san_chuan' in payload
+}
+
+export function isZiWeiPayload(payload: ChartPayload): payload is ZiWeiPayload {
+  return 'palaces' in payload && 'ming_gong' in payload
+}
+
 export interface Entropy {
   entropy_id: string
   backs: number[]
@@ -135,7 +259,7 @@ export interface ChartView {
   question?: string
   calendar: CalendarContext
   school?: Record<string, string>
-  payload: LiuYaoPayload
+  payload: ChartPayload
   facts: Fact[]
   warnings?: string[]
   entropy?: Entropy
@@ -174,8 +298,12 @@ export interface FollowupMessage {
 export interface ArchiveEntry {
   chart_id: string
   question: string
-  gua_name: string
+  /** 旧六爻记录字段；三术统一展示优先用 title / subtitle。 */
+  gua_name?: string
   changed_gua?: string
+  title?: string
+  subtitle?: string
+  method?: string
   saved_at: string
   cast_at?: string
   read_at?: string

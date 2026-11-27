@@ -11,7 +11,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'start'): void
+  (e: 'start', method?: 'liuyao' | 'daliuren' | 'ziwei'): void
   (e: 'archive'): void
   (e: 'codex'): void
 }>()
@@ -74,10 +74,10 @@ const methods = [
     glyph: '壬',
     name: '大六壬',
     desc: '课体 · 三传 · 十二天将',
-    state: '待启',
-    open: false,
+    state: '已开卷',
+    open: true,
     steps: ['起课', '传课', '断课'],
-    action: '未启'
+    action: '入卷'
   },
   {
     key: 'ziwei',
@@ -86,17 +86,17 @@ const methods = [
     glyph: '紫',
     name: '紫微斗数',
     desc: '星曜 · 十二宫 · 四化',
-    state: '待启',
-    open: false,
+    state: '已开卷',
+    open: true,
     steps: ['安星', '布宫', '读盘'],
-    action: '未启'
+    action: '入卷'
   }
 ]
 
 const openCount = methods.filter((method) => method.open).length
 
-function enterMethod(open: boolean) {
-  if (open) emit('start')
+function enterMethod(method: { key: string; open: boolean }) {
+  if (method.open) emit('start', method.key)
 }
 </script>
 
@@ -110,14 +110,14 @@ function enterMethod(open: boolean) {
           <i></i>
           <b>山门</b>
         </div>
-        <h1><span>问一事</span><span>起一卦</span></h1>
+        <h1><span>问一事</span><span>开一盘</span></h1>
         <p class="home-lede">
-          铜钱六摇，装卦断事。<br />
+          六爻问事，大六壬起课，紫微斗数看命。<br />
           盘面由确定性引擎计算，解读交给你自配的大模型。
         </p>
         <div class="home-actions">
           <button class="seal-btn" @click="$emit('start')">
-            {{ hasChart ? '继续解卦' : '入山问卦' }}
+            {{ hasChart ? '继续解盘' : '入山问卦' }}
             <i>→</i>
           </button>
           <button class="text-btn" @click="$emit('codex')">先读三术</button>
@@ -151,7 +151,7 @@ function enterMethod(open: boolean) {
         <div class="side-note">
           <span class="side-kicker">支线</span>
           <p v-if="lastEntry">
-            最近一卦：<b>{{ lastEntry.gua_name }}</b><br />
+            最近一盘：<b>{{ lastEntry.title || lastEntry.gua_name || '未名盘' }}</b><br />
             {{ lastEntry.question || '未记所问' }}
           </p>
           <p v-else>每成一卦，会自动收入「卦历」，只存在这台机器上。</p>
@@ -180,7 +180,7 @@ function enterMethod(open: boolean) {
           :class="{ 'is-open': m.open, 'is-locked': !m.open }"
           :style="{ '--delay': `${i * 120}ms` }"
           :disabled="!m.open"
-          @click="enterMethod(m.open)"
+          @click="enterMethod(m)"
         >
           <span class="route-node"><i>{{ m.roman }}</i></span>
           <div class="route-card">

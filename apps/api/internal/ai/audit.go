@@ -38,7 +38,7 @@ func AuditReading(text string, chart schema.Chart) []string {
 		cursor += idx + len(heading)
 	}
 
-	issues = append(issues, auditContent(text, chart, true)...)
+	issues = append(issues, auditMethodContent(text, chart, true)...)
 	return issues
 }
 
@@ -49,10 +49,88 @@ func AuditFollowup(text string, chart schema.Chart) []string {
 	if strings.TrimSpace(text) == "" {
 		return []string{"输出为空"}
 	}
-	return auditContent(text, chart, false)
+	return auditMethodContent(text, chart, false)
 }
 
-func auditContent(text string, chart schema.Chart, requireSurname bool) []string {
+func auditMethodContent(text string, chart schema.Chart, requireSurname bool) []string {
+	switch chart.Method {
+	case schema.MethodLiuYao:
+		return auditLiuYaoContent(text, chart, requireSurname)
+	case schema.MethodDaLiuRen:
+		return append(auditGenericContent(text, chart), auditDaLiuRenTerms(text, chart.Facts)...)
+	case schema.MethodZiWei:
+		return append(auditGenericContent(text, chart), auditZiWeiTerms(text, chart.Facts)...)
+	default:
+		return auditGenericContent(text, chart)
+	}
+}
+
+func auditGenericContent(text string, chart schema.Chart) []string {
+	var issues []string
+	if factsBlob(chart.Facts) == "" {
+		issues = append(issues, "盘面事实为空，模型没有可依据的盘面")
+	}
+	for _, phrase := range forbiddenPhrases {
+		if containsAffirmative(text, phrase) {
+			issues = append(issues, "出现绝对化/诱导性词："+phrase)
+		}
+	}
+	for _, phrase := range []string{"必成", "必败"} {
+		if containsAffirmative(text, phrase) {
+			issues = append(issues, "出现绝对化吉凶承诺："+phrase)
+		}
+	}
+	return issues
+}
+
+var daLiuRenGates = []string{"贼克", "比用", "涉害", "遥克", "昴星", "别责", "八专", "伏吟", "返吟"}
+
+func auditDaLiuRenTerms(text string, facts []schema.Fact) []string {
+	factsText := factsBlob(facts)
+	var issues []string
+	for _, gate := range daLiuRenGates {
+		if strings.Contains(text, gate) && !strings.Contains(factsText, gate) {
+			issues = append(issues, "出现盘面事实之外的课体："+gate)
+		}
+	}
+	for _, name := range []string{"贵人", "螣蛇", "朱雀", "六合", "勾陈", "青龙", "天空", "白虎", "太常", "玄武", "太阴", "天后"} {
+		if strings.Contains(text, name) && !strings.Contains(factsText, name) {
+			issues = append(issues, "出现盘面事实之外的天将："+name)
+		}
+	}
+	return issues
+}
+
+var ziWeiStars = []string{
+	"紫微", "天机", "太阳", "武曲", "天同", "廉贞",
+	"天府", "太阴", "贪狼", "巨门", "天相", "天梁", "七杀", "破军",
+	"左辅", "右弼", "文昌", "文曲", "天魁", "天钺", "禄存", "擎羊", "陀罗",
+	"火星", "铃星", "地空", "地劫", "天马",
+}
+
+func auditZiWeiTerms(text string, facts []schema.Fact) []string {
+	factsText := factsBlob(facts)
+	var issues []string
+	for _, star := range ziWeiStars {
+		if strings.Contains(text, star) && !strings.Contains(factsText, star) {
+			issues = append(issues, "出现盘面事实之外的星曜："+star)
+		}
+	}
+	for _, star := range ziWeiStars {
+		for _, hua := range []string{"禄", "权", "科", "忌"} {
+			claim := star + "化" + hua
+			// 允许模型写“武曲星化权”，但落盘校验仍按“武曲化权”。
+			if strings.Contains(text, claim) || strings.Contains(text, star+"星化"+hua) {
+				if !strings.Contains(factsText, claim) {
+					issues = append(issues, "出现盘面事实之外的四化："+claim)
+				}
+			}
+		}
+	}
+	return issues
+}
+
+func auditLiuYaoContent(text string, chart schema.Chart, requireSurname bool) []string {
 	var issues []string
 	seen := make(map[string]bool)
 	add := func(format string, args ...any) {

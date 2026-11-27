@@ -269,6 +269,137 @@ select:focus {
   border: 1px solid var(--line);
 }
 
+.method-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.method-tab {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 22px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--grey);
+  cursor: pointer;
+  transition: color 180ms ease-out, background 180ms ease-out;
+}
+
+.method-tab b {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+.method-tab span {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.method-tab:hover {
+  color: var(--ink);
+}
+
+.method-tab.is-active {
+  background: var(--paper-2);
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--cinnabar);
+}
+
+.method-tab.is-active b {
+  color: var(--cinnabar);
+}
+
+.method-form {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 28px;
+  align-items: end;
+  padding: 18px 28px 20px;
+  border-top: 1px dashed var(--line);
+}
+
+.method-form-copy span {
+  display: block;
+  margin-bottom: 5px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 17px;
+  letter-spacing: 0.1em;
+}
+
+.method-form-copy p {
+  margin: 0;
+  color: var(--grey);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.method-fields {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+}
+
+.method-fields.is-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 14px;
+  align-items: end;
+}
+
+.method-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.method-fields label > span {
+  color: var(--grey);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.method-fields input,
+.method-fields select {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 14px;
+}
+
+.method-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 7px !important;
+}
+
+.method-check input {
+  width: auto;
+  min-height: auto;
+}
+
+.method-hint {
+  grid-column: 2;
+  margin: 8px 0 0;
+  color: var(--grey);
+  font-size: 10px;
+}
+
+.cast-row.is-simple {
+  grid-template-columns: minmax(0, 1fr) 128px;
+}
+
 .cast-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 168px 128px;
@@ -1643,5 +1774,39 @@ select:focus {
   .footnote {
     flex-direction: column;
     gap: 6px;
+  }
+}
+
+@media (max-width: 900px) {
+  .method-form {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .method-hint {
+    grid-column: 1;
+  }
+
+  .method-fields.is-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .method-tabs {
+    overflow-x: auto;
+  }
+
+  .method-tab {
+    flex: 0 0 auto;
+    padding: 10px 16px;
+  }
+
+  .method-form {
+    padding: 15px 20px 18px;
+  }
+
+  .method-fields.is-grid {
+    grid-template-columns: 1fr;
   }
 }

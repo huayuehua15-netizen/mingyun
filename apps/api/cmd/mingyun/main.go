@@ -20,7 +20,10 @@ import (
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/httpapi"
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/store"
 	"github.com/huayuehua15-netizen/mingyun/paipan/calendar"
+	"github.com/huayuehua15-netizen/mingyun/paipan/daliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/liuyao"
+	"github.com/huayuehua15-netizen/mingyun/paipan/schema"
+	"github.com/huayuehua15-netizen/mingyun/paipan/ziwei"
 )
 
 // version 由构建时注入，默认开发版本。
@@ -68,7 +71,7 @@ func usage() {
 用法:
   mingyun version                    输出版本
   mingyun calendar [参数]            计算历法上下文（干支、节气、月将、旬空）
-  mingyun paipan [参数]              六爻排盘，输出盘面 JSON
+  mingyun paipan [参数]              三术排盘，输出盘面 JSON
   mingyun serve [参数]               启动 HTTP 服务
 
 历法参数（calendar / paipan 通用）:
@@ -80,11 +83,19 @@ func usage() {
   -boundary string    日界规则 zi_chu | zi_zheng，默认 zi_chu
 
 paipan 参数:
-  -method string      术数，当前仅 liuyao
+  -method string      术数：liuyao | daliuren | ziwei
   -question string    所问之事
   -lines string       六爻，自下而上，逗号分隔：少阳,少阴,老阳,老阴
   -coins string       六组铜钱，逗号分隔，每组三位，1 为背：111,110,100,000,111,100
   -summary            只打印一行摘要，不输出完整 JSON
+
+紫微参数:
+  -gender string      性别：male / female
+  -calendar string    历法：solar / lunar，默认 solar
+  -birth-date string  出生日期 YYYY-MM-DD
+  -birth-time string  出生时刻 HH:MM
+  -leap-month        农历闰月
+  -leap-policy string 闰月策略 as_this_month | as_next_month
 `)
 }
 
@@ -155,39 +166,115 @@ func runPaipan(args []string) error {
 	fs := flag.NewFlagSet("paipan", flag.ContinueOnError)
 	var opts calendarOptions
 	opts.register(fs)
-	method := fs.String("method", "liuyao", "术数：liuyao")
+	method := fs.String("method", "liuyao", "术数：liuyao | daliuren | ziwei")
 	question := fs.String("question", "", "所问之事")
 	lines := fs.String("lines", "", "六爻：少阳,少阴,老阳,老阴")
 	coins := fs.String("coins", "", "六组铜钱：111,110,100,000,111,100")
 	summary := fs.Bool("summary", false, "只打印摘要")
+	gender := fs.String("gender", "", "紫微性别：male / female")
+	calendarType := fs.String("calendar", "solar", "紫微历法：solar / lunar")
+	birthDate := fs.String("birth-date", "", "紫微出生日期 YYYY-MM-DD")
+	birthTime := fs.String("birth-time", "", "紫微出生时刻 HH:MM")
+	leapMonth := fs.Bool("leap-month", false, "紫微农历闰月")
+	leapPolicy := fs.String("leap-policy", "as_this_month", "紫微闰月策略 as_this_month | as_next_month")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	if *method != "liuyao" {
-		return fmt.Errorf("暂只支持 liuyao，大六壬与紫微在 M3—M4 实现")
+	var chart schema.Chart
+	var err error
+	switch *method {
+	case "liuyao":
+		chart, err = castCLILiuYao(opts, *question, *lines, *coins)
+	case "daliuren":
+		cal, calErr := opts.build()
+		if calErr != nil {
+			return calErr
+		}
+		chart, err = daliuren.Cast(daliuren.Input{Question: *question}, cal)
+	case "ziwei":
+		loc, locErr := time.LoadLocation(opts.tz)
+		if locErr != nil {
+			return fmt.Errorf("加载时区 %q: %w", opts.tz, locErr)
+		}
+		birth, birthErr := ziwei.ParseBirth(ziwei.Input{
+			Gender:          *gender,
+			CalendarType:    *calendarType,
+			BirthDate:       *birthDate,
+			BirthTime:       *birthTime,
+			IsLeapMonth:     *leapMonth,
+			LeapMonthPolicy: *leapPolicy,
+		}, ziwei.BirthOptions{
+			Location:         loc,
+			Longitude:        opts.lon,
+			HasLongitude:     true,
+			UseTrueSolarTime: opts.trueSolar,
+		})
+		if birthErr != nil {
+			return birthErr
+		}
+		db, dbErr := calendar.ParseDayBoundary(opts.boundary)
+		if dbErr != nil {
+			return dbErr
+		}
+		cal, calErr := calendar.Build(calendar.Request{
+			At:          birth.SolarTime,
+			DayBoundary: db,
+		})
+		if calErr != nil {
+			return calErr
+		}
+		chart, err = ziwei.Cast(ziwei.Input{
+			Question:        *question,
+			Gender:          *gender,
+			CalendarType:    *calendarType,
+			BirthDate:       *birthDate,
+			BirthTime:       *birthTime,
+			IsLeapMonth:     *leapMonth,
+			LeapMonthPolicy: *leapPolicy,
+		}, birth, cal)
+	default:
+		return fmt.Errorf("暂只支持 liuyao、daliuren、ziwei，收到 %q", *method)
+	}
+	if err != nil {
+		return err
 	}
 
-	in := liuyao.Input{Question: *question}
+	if *summary {
+		switch p := chart.Payload.(type) {
+		case liuyao.Payload:
+			fmt.Println(p.Summary())
+		case daliuren.Payload:
+			fmt.Println(p.Summary())
+		case ziwei.Payload:
+			fmt.Println(p.Summary())
+		}
+		return nil
+	}
+	return encodeJSON(chart)
+}
+
+func castCLILiuYao(opts calendarOptions, question, lines, coins string) (schema.Chart, error) {
+	in := liuyao.Input{Question: question}
 	switch {
-	case *lines != "":
+	case lines != "":
 		in.Mode = liuyao.ModeManual
-		for _, s := range splitList(*lines) {
+		for _, s := range splitList(lines) {
 			k, err := liuyao.ParseLineKind(s)
 			if err != nil {
-				return err
+				return schema.Chart{}, err
 			}
 			in.Lines = append(in.Lines, k)
 		}
-	case *coins != "":
+	case coins != "":
 		in.Mode = liuyao.ModeCoin
-		groups := splitList(*coins)
+		groups := splitList(coins)
 		if len(groups) != 6 {
-			return fmt.Errorf("铜钱需 6 组，实为 %d", len(groups))
+			return schema.Chart{}, fmt.Errorf("铜钱需 6 组，实为 %d", len(groups))
 		}
 		for i, g := range groups {
 			if len([]rune(g)) != 3 {
-				return fmt.Errorf("第 %d 组铜钱需三位 0/1，实为 %q", i+1, g)
+				return schema.Chart{}, fmt.Errorf("第 %d 组铜钱需三位 0/1，实为 %q", i+1, g)
 			}
 			backs := 0
 			for _, r := range []rune(g) {
@@ -196,28 +283,20 @@ func runPaipan(args []string) error {
 					backs++
 				case '0':
 				default:
-					return fmt.Errorf("第 %d 组铜钱出现非法字符 %q", i+1, string(r))
+					return schema.Chart{}, fmt.Errorf("第 %d 组铜钱出现非法字符 %q", i+1, string(r))
 				}
 			}
 			in.Backs[i] = backs
 		}
 	default:
-		return fmt.Errorf("请用 -lines 或 -coins 指定卦")
+		return schema.Chart{}, fmt.Errorf("请用 -lines 或 -coins 指定卦")
 	}
 
 	cal, err := opts.build()
 	if err != nil {
-		return err
+		return schema.Chart{}, err
 	}
-	chart, err := liuyao.Cast(in, cal)
-	if err != nil {
-		return err
-	}
-	if *summary {
-		fmt.Println(chart.Payload.(liuyao.Payload).Summary())
-		return nil
-	}
-	return encodeJSON(chart)
+	return liuyao.Cast(in, cal)
 }
 
 // splitList 按逗号或空白切分，兼容中文逗号与 PowerShell 的数组展开。

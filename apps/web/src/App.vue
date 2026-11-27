@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { castLiuYao, fetchCalendar, streamFollowup, streamInterpret } from './api'
-import type { InterpretEvent } from './api'
-import type { ArchiveEntry, CalendarContext, ChartView, FollowupMessage, ViewName } from './types'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { castChart, castLiuYao, fetchCalendar, streamFollowup, streamInterpret } from './api'
+import type { CastMethod, CastRequest, InterpretEvent } from './api'
+import type { ArchiveEntry, CalendarContext, ChartPayload, ChartView, FollowupMessage, ViewName } from './types'
+import { isDaLiuRenPayload, isLiuYaoPayload, isZiWeiPayload } from './types'
 import LiuYaoBoard from './components/LiuYaoBoard.vue'
+import DaLiuRenBoard from './components/DaLiuRenBoard.vue'
+import ZiWeiBoard from './components/ZiWeiBoard.vue'
 import GameHome from './components/GameHome.vue'
 import GameArchive from './components/GameArchive.vue'
 import GameCodex from './components/GameCodex.vue'
@@ -20,6 +23,42 @@ function resolveInitialView(): ViewName {
 }
 
 const view = ref<ViewName>(resolveInitialView())
+const method = ref<CastMethod>('liuyao')
+const chartUnit = computed(() => (method.value === 'liuyao' ? '卦' : method.value === 'daliuren' ? '课' : '盘'))
+const methodLabel = computed(
+  () => ({ liuyao: '六爻', daliuren: '大六壬', ziwei: '紫微斗数' })[method.value]
+)
+
+watch(
+  [view, methodLabel],
+  ([current, label]) => {
+    const viewName =
+      current === 'home'
+        ? '山门'
+        : current === 'cast'
+          ? label
+          : current === 'archive'
+            ? '卦历'
+            : '三术'
+    document.title = `命云 MingYun · ${viewName}`
+  },
+  { immediate: true }
+)
+const methodMeta = computed(
+  () =>
+    ({
+      liuyao: { volume: '卷一', glyph: '卦', steps: ['问事', '摇卦', '解卦'] },
+      daliuren: { volume: '卷二', glyph: '课', steps: ['定时', '成课', '断课'] },
+      ziwei: { volume: '卷三', glyph: '盘', steps: ['生辰', '安星', '读盘'] }
+    })[method.value]
+)
+
+function stepDone(index: number): boolean {
+  if (index === 2) return !!chart.value
+  if (method.value === 'liuyao') return index === 0 ? questionReady.value : tosses.value.length > 0
+  if (method.value === 'daliuren') return index === 0 ? !!daliurenAt.value : !!chart.value
+  return index === 0 ? birthReady.value : !!chart.value
+}
 const archive = ref<ArchiveEntry[]>([])
 const ARCHIVE_KEY = 'mingyun.archive.v1'
 const ARCHIVE_LIMIT = 100
@@ -29,9 +68,38 @@ const mode = ref<'coin' | 'manual'>('coin')
 const manualLines = ref<string[]>(['少阳', '少阳', '少阳', '少阳', '少阳', '少阳'])
 const lineOptions = ['少阳', '少阴', '老阳', '老阴']
 
+const methodTabs: { key: CastMethod; name: string; note: string }[] = [
+  { key: 'liuyao', name: '六爻', note: '问事' },
+  { key: 'daliuren', name: '大六壬', note: '起课' },
+  { key: 'ziwei', name: '紫微', note: '看命' }
+]
+
+const daliurenAt = ref('')
+const birth = ref({
+  gender: 'male' as 'male' | 'female',
+  calendar_type: 'solar' as 'solar' | 'lunar',
+  birth_date: '1990-05-15',
+  birth_time: '10:30',
+  is_leap_month: false,
+  leap_month_policy: 'as_this_month' as 'as_this_month' | 'as_next_month'
+})
+
 const chart = ref<ChartView | null>(null)
 const calendar = ref<CalendarContext | null>(null)
 const error = ref('')
+
+const liuyaoPayload = computed(() => {
+  const payload = chart.value?.payload
+  return payload && isLiuYaoPayload(payload) ? payload : null
+})
+const daLiuRenPayload = computed(() => {
+  const payload = chart.value?.payload
+  return payload && isDaLiuRenPayload(payload) ? payload : null
+})
+const ziWeiPayload = computed(() => {
+  const payload = chart.value?.payload
+  return payload && isZiWeiPayload(payload) ? payload : null
+})
 
 // 一爻一摇：tosses 里每一项是三枚铜钱（1=背，0=字）。
 const tosses = ref<number[][]>([])
@@ -99,8 +167,10 @@ const followupReady = computed(
 )
 
 const followupLockedText = computed(() => {
-  if (!chart.value) return '先起一卦，再沿这张盘追问。'
-  if (followupUsed.value >= MAX_FOLLOWUPS) return `这张盘已追问 ${MAX_FOLLOWUPS} 轮，建议另起一卦。`
+  if (!chart.value) return `先起一${chartUnit.value}，再沿这张盘追问。`
+  if (followupUsed.value >= MAX_FOLLOWUPS) {
+    return `这张盘已追问 ${MAX_FOLLOWUPS} 轮，建议另起一${chartUnit.value}。`
+  }
   if (readingBusy.value) return '首轮解读完成后，可以沿这张盘继续追问。'
   if (reading.value.status === 'error') return '首轮解读失败；修复后可继续追问。'
   if (reading.value.mode === 'offline') return '当前是离线摘要，未配置模型；配置后可沿原盘追问。'
@@ -220,19 +290,33 @@ const readingSections = computed(() => parseReading(reading.value.text))
 const localBacks = computed(() => tosses.value.map((coins) => coins.reduce((a, b) => a + b, 0)))
 
 const questionReady = computed(() => question.value.trim().length > 0)
-const needsQuestion = computed(() => !chart.value && !questionReady.value)
+const needsQuestion = computed(() => method.value !== 'ziwei' && !questionReady.value)
+const birthReady = computed(
+  () => !!birth.value.birth_date.trim() && !!birth.value.birth_time.trim() && !!birth.value.gender
+)
+const methodReady = computed(() => {
+  if (method.value === 'ziwei') return birthReady.value
+  if (method.value === 'daliuren') return !!daliurenAt.value && questionReady.value
+  return true
+})
 
 const castLabel = computed(() => {
-  if (submitting.value) return '成卦中'
+  if (submitting.value) return method.value === 'liuyao' ? '成卦中' : method.value === 'daliuren' ? '起课中' : '排盘中'
   if (shaking.value) return '摇卦中'
-  if (chart.value) return '再 起 卦'
+  if (chart.value) {
+    if (method.value === 'ziwei') return '再 排 盘'
+    if (method.value === 'daliuren') return '再 起 课'
+    return '再 起 卦'
+  }
+  if (method.value === 'ziwei') return '排 命 盘'
+  if (method.value === 'daliuren') return questionReady.value ? '起 课' : '先 问 一 事'
   if (!questionReady.value) return '先 问 一 事'
   if (mode.value === 'manual') return '起 卦'
   if (tosses.value.length >= 6) return '重试成卦'
   return `摇 ${GUAS[tosses.value.length]}`
 })
 
-const castDisabled = computed(() => shaking.value || submitting.value)
+const castDisabled = computed(() => shaking.value || submitting.value || !methodReady.value)
 
 function syncFromHash() {
   const next = window.location.hash.replace(/^#\/?/, '') as ViewName
@@ -283,6 +367,34 @@ function normalizeFollowupList(input: unknown): FollowupMessage[] {
     .slice(-MAX_FOLLOWUPS * 2)
 }
 
+function summaryFields(payload: ChartPayload) {
+  if (isLiuYaoPayload(payload)) {
+    return {
+      title: payload.gua_name,
+      subtitle: payload.changed_gua ? `之 ${payload.changed_gua}` : '六爻安静',
+      guaName: payload.gua_name,
+      changedGua: payload.changed_gua || '',
+      topic: payload.use_shen?.topic_label || ''
+    }
+  }
+  if (isDaLiuRenPayload(payload)) {
+    return {
+      title: `大六壬 · ${payload.ke_ti}`,
+      subtitle: `${payload.month_general.zhi}将 · ${payload.gate}课 · ${payload.san_chuan.map((c) => c.branch).join('→')}`,
+      guaName: '',
+      changedGua: '',
+      topic: ''
+    }
+  }
+  return {
+    title: `${payload.ming_gong}宫 · ${payload.wu_xing_ju}`,
+    subtitle: `紫微在${payload.ziwei_pos} · ${payload.sihua_year.map((s) => s.star + '化' + s.hua).join('、')}`,
+    guaName: '',
+    changedGua: '',
+    topic: ''
+  }
+}
+
 function normalizeArchiveEntry(item: unknown): ArchiveEntry | null {
   if (!item || typeof item !== 'object') return null
   const raw = item as Partial<ArchiveEntry>
@@ -300,17 +412,21 @@ function normalizeArchiveEntry(item: unknown): ArchiveEntry | null {
         : raw.reading_error
           ? 'error'
           : 'pending'
+  const fields = summaryFields(chart.payload)
 
   return {
     chart_id: raw.chart_id,
     question: raw.question || chart.question || '',
-    gua_name: raw.gua_name || chart.payload.gua_name,
-    changed_gua: raw.changed_gua || chart.payload.changed_gua,
+    gua_name: raw.gua_name || fields.guaName,
+    changed_gua: raw.changed_gua || fields.changedGua,
+    title: raw.title || fields.title,
+    subtitle: raw.subtitle || fields.subtitle,
+    method: raw.method || chart.method,
     saved_at: savedAt,
     cast_at: raw.cast_at || chart.created_at || savedAt,
     read_at: raw.read_at || (reading ? savedAt : undefined),
     status,
-    topic_label: raw.topic_label || chart.payload.use_shen?.topic_label,
+    topic_label: raw.topic_label || fields.topic,
     mode,
     model: raw.model || '',
     reading,
@@ -354,16 +470,20 @@ function upsertArchiveEntry(
 ): ArchiveEntry {
   const existing = archive.value.find((item) => item.chart_id === chartData.chart_id)
   const now = new Date().toISOString()
+  const fields = summaryFields(chartData.payload)
   const entry: ArchiveEntry = {
     chart_id: chartData.chart_id,
     question: patch.question ?? chartData.question ?? question.value.trim(),
-    gua_name: chartData.payload.gua_name,
-    changed_gua: chartData.payload.changed_gua,
+    gua_name: fields.guaName,
+    changed_gua: fields.changedGua,
+    title: fields.title,
+    subtitle: fields.subtitle,
+    method: chartData.method,
     saved_at: existing?.saved_at || now,
     cast_at: existing?.cast_at || chartData.created_at || now,
     read_at: patch.read_at ?? existing?.read_at,
     status: patch.status ?? existing?.status ?? 'pending',
-    topic_label: chartData.payload.use_shen?.topic_label || existing?.topic_label,
+    topic_label: fields.topic || existing?.topic_label,
     mode: patch.mode ?? existing?.mode ?? '',
     model: patch.model ?? existing?.model ?? '',
     reading: patch.reading ?? existing?.reading ?? '',
@@ -450,6 +570,7 @@ function openArchive(entry: ArchiveEntry) {
   followupError.value = ''
   followupBusy.value = false
   chart.value = entry.chart
+  method.value = (entry.chart.method as CastMethod) || 'liuyao'
   question.value = entry.question || entry.chart.question || ''
   if (entry.chart.calendar) calendar.value = entry.chart.calendar
   reading.value = {
@@ -473,6 +594,11 @@ onMounted(async () => {
   window.addEventListener('hashchange', syncFromHash)
 
   const params = new URLSearchParams(window.location.search)
+  const presetMethod = params.get('method')
+  if (presetMethod === 'daliuren' || presetMethod === 'ziwei' || presetMethod === 'liuyao') {
+    method.value = presetMethod
+  }
+  daliurenAt.value = localDateTimeInput()
   const presetAt = params.get('at')
   if (presetAt) replayAt = presetAt
   previewMode.value = params.get('cast') === '1'
@@ -539,6 +665,47 @@ function sleep(ms: number): Promise<void> {
 function isYang(i: number): boolean {
   const t = strip.value[i]
   return !!t && t.backs % 2 === 1
+}
+
+function localDateTimeInput(date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function resetBoard() {
+  resetReading()
+  chart.value = null
+  tosses.value = []
+  error.value = ''
+}
+
+function startMethod(next: CastMethod) {
+  method.value = next
+  if (next === 'daliuren' && !daliurenAt.value) daliurenAt.value = localDateTimeInput()
+  if (chart.value && chart.value.method !== next) resetBoard()
+  navigate('cast')
+  nextTick(() => questionEl.value?.focus())
+}
+
+function onHomeStart(next?: CastMethod) {
+  if (next) {
+    startMethod(next)
+    return
+  }
+  if (chart.value) {
+    method.value = (chart.value.method as CastMethod) || 'liuyao'
+    navigate('cast')
+    return
+  }
+  startMethod('liuyao')
+}
+
+function switchMethod(next: CastMethod) {
+  if (next === method.value) return
+  method.value = next
+  if (next === 'daliuren' && !daliurenAt.value) daliurenAt.value = localDateTimeInput()
+  resetBoard()
+  error.value = ''
 }
 
 function setMode(next: 'coin' | 'manual') {
@@ -791,6 +958,14 @@ function scrollToBoard() {
 
 async function onCast() {
   if (shaking.value || submitting.value) return
+  if (method.value === 'daliuren') {
+    await submitDaLiuRen()
+    return
+  }
+  if (method.value === 'ziwei') {
+    await submitZiWei()
+    return
+  }
   if (!chart.value && !questionReady.value) {
     questionEl.value?.focus()
     return
@@ -889,6 +1064,7 @@ async function submitManual() {
 }
 
 async function autoCast() {
+  if (method.value !== 'liuyao') return
   if (mode.value === 'manual') {
     await submitManual()
     return
@@ -898,6 +1074,56 @@ async function autoCast() {
   }
   await nextTick()
   await submitCoinChart()
+}
+
+async function submitMethodChart(next: CastMethod, req: CastRequest) {
+  submitting.value = true
+  error.value = ''
+  try {
+    const data = await castChart(next, req)
+    chart.value = data
+    if (data.calendar) calendar.value = data.calendar
+    recordCurrentChart(data)
+    await nextTick()
+    window.setTimeout(scrollToBoard, 260)
+    void startReading()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '排盘失败'
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function submitDaLiuRen() {
+  if (!daliurenAt.value) {
+    error.value = '请先确认起课时间'
+    return
+  }
+  if (!questionReady.value) {
+    error.value = '大六壬需要先写明所问之事'
+    questionEl.value?.focus()
+    return
+  }
+  await submitMethodChart('daliuren', {
+    question: question.value.trim(),
+    at: new Date(daliurenAt.value).toISOString()
+  })
+}
+
+async function submitZiWei() {
+  if (!birthReady.value) {
+    error.value = '请补全出生日期、时辰与性别'
+    return
+  }
+  await submitMethodChart('ziwei', {
+    question: question.value.trim(),
+    gender: birth.value.gender,
+    calendar_type: birth.value.calendar_type,
+    birth_date: birth.value.birth_date,
+    birth_time: birth.value.birth_time,
+    is_leap_month: birth.value.is_leap_month,
+    leap_month_policy: birth.value.leap_month_policy
+  })
 }
 
 function formatTime(iso: string): string {
@@ -927,7 +1153,7 @@ function formatTime(iso: string): string {
       <div class="game-hud">
         <span class="hud-cell"><em>历史</em><b>{{ archive.length }}</b></span>
         <span v-if="calendar" class="hud-cell"><em>日</em><b>{{ calendar.day_gz }}</b></span>
-        <span class="hud-cell hud-cell--quiet"><em>三术</em><b>六爻</b></span>
+        <span class="hud-cell hud-cell--quiet"><em>三术</em><b>{{ methodLabel }}</b></span>
         <a href="https://github.com/huayuehua15-netizen/mingyun" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
     </header>
@@ -939,43 +1165,60 @@ function formatTime(iso: string): string {
         :archive-count="archive.length"
         :has-chart="!!chart"
         :last-entry="archive[0] || null"
-        @start="navigate('cast')"
+        @start="onHomeStart"
         @archive="navigate('archive')"
         @codex="navigate('codex')"
       />
 
       <section v-else-if="view === 'cast'" key="cast" class="scene-view cast-view">
-        <span class="view-watermark" aria-hidden="true">卦</span>
+        <span class="view-watermark" aria-hidden="true">{{ methodMeta.glyph }}</span>
         <header class="scene-bar">
           <button class="scene-back" @click="navigate('home')">← 山门</button>
           <div class="scene-heading">
-            <span>卷一</span>
-            <h1>{{ chart ? '卦已成' : '案上起卦' }}</h1>
+            <span>{{ methodMeta.volume }} · {{ methodLabel }}</span>
+            <h1>{{ chart ? '盘已定' : '案上起' + (method === 'liuyao' ? '卦' : method === 'daliuren' ? '课' : '盘') }}</h1>
           </div>
-          <div class="scene-steps" aria-label="起卦进度">
-            <span :class="{ 'is-done': questionReady }">问事</span>
-            <i></i>
-            <span :class="{ 'is-done': tosses.length > 0 }">摇卦</span>
-            <i></i>
-            <span :class="{ 'is-done': !!chart }">解卦</span>
+          <div class="scene-steps" :aria-label="`${methodLabel}起盘进度`">
+            <template v-for="(step, i) in methodMeta.steps" :key="step">
+              <span :class="{ 'is-done': stepDone(i) }">{{ step }}</span>
+              <i v-if="i < 2"></i>
+            </template>
           </div>
         </header>
 
         <div class="scene-body">
           <section id="cast" class="cast-panel">
-      <div class="cast-row">
+      <div class="method-tabs" role="tablist" aria-label="选择术数">
+        <button
+          v-for="item in methodTabs"
+          :key="item.key"
+          class="method-tab"
+          :class="{ 'is-active': method === item.key }"
+          role="tab"
+          :aria-selected="method === item.key"
+          @click="switchMethod(item.key)"
+        >
+          <b>{{ item.name }}</b>
+          <span>{{ item.note }}</span>
+        </button>
+      </div>
+
+      <div class="cast-row" :class="{ 'is-simple': method !== 'liuyao' }">
         <div class="ask">
-          <label for="question">所问之事 <span>QUESTION</span></label>
+          <label for="question">
+            所问之事
+            <span>{{ method === 'ziwei' ? '可留空 · 只看命盘' : 'QUESTION' }}</span>
+          </label>
           <input
             id="question"
             ref="questionEl"
             v-model="question"
             maxlength="200"
-            placeholder="例如：这次考试能否通过？"
+            :placeholder="method === 'ziwei' ? '例如：今年的事业与感情如何？' : method === 'daliuren' ? '例如：这桩合作能否谈成？' : '例如：这次考试能否通过？'"
             @keydown.enter.prevent="onCast"
           />
         </div>
-        <div class="mode-switch">
+        <div v-if="method === 'liuyao'" class="mode-switch">
           <button class="mode-btn" :class="{ 'is-active': mode === 'coin' }" @click="setMode('coin')">
             铜钱摇卦
           </button>
@@ -993,7 +1236,64 @@ function formatTime(iso: string): string {
         </button>
       </div>
 
-      <div v-if="mode === 'coin'" class="coin-strip">
+      <div v-if="method === 'daliuren'" class="method-form">
+        <div class="method-form-copy">
+          <span>起课时间</span>
+          <p>月将加时，天地盘随时而定。默认取此刻，也可回到想问的那一分钟。</p>
+        </div>
+        <div class="method-fields">
+          <label>
+            <span>时刻</span>
+            <input v-model="daliurenAt" type="datetime-local" />
+          </label>
+          <button class="text-btn" type="button" @click="daliurenAt = localDateTimeInput()">用此刻</button>
+        </div>
+      </div>
+
+      <div v-if="method === 'ziwei'" class="method-form">
+        <div class="method-form-copy">
+          <span>出生信息</span>
+          <p>紫微以生辰安命身、定五行局、布十二宫。公历农历都可，闰月按所选口径处理。</p>
+        </div>
+        <div class="method-fields is-grid">
+          <label>
+            <span>性别</span>
+            <select v-model="birth.gender">
+              <option value="male">男 · 乾造</option>
+              <option value="female">女 · 坤造</option>
+            </select>
+          </label>
+          <label>
+            <span>历法</span>
+            <select v-model="birth.calendar_type">
+              <option value="solar">公历</option>
+              <option value="lunar">农历</option>
+            </select>
+          </label>
+          <label>
+            <span>出生日期</span>
+            <input v-model="birth.birth_date" type="date" />
+          </label>
+          <label>
+            <span>出生时辰</span>
+            <input v-model="birth.birth_time" type="time" />
+          </label>
+          <label class="method-check">
+            <input v-model="birth.is_leap_month" type="checkbox" />
+            <span>农历闰月</span>
+          </label>
+          <label>
+            <span>闰月口径</span>
+            <select v-model="birth.leap_month_policy">
+              <option value="as_this_month">按本月</option>
+              <option value="as_next_month">按下月</option>
+            </select>
+          </label>
+        </div>
+        <p class="method-hint">默认东经 113.39°、真太阳时开启；子时按 23:00 换日。</p>
+      </div>
+
+      <div v-if="method === 'liuyao' && mode === 'coin'" class="coin-strip">
         <div
           v-if="shaking"
           class="toss-overlay"
@@ -1056,7 +1356,7 @@ function formatTime(iso: string): string {
         </div>
       </div>
 
-      <div v-else class="coin-strip is-manual">
+      <div v-else-if="method === 'liuyao'" class="coin-strip is-manual">
         <div v-for="(_, i) in manualLines" :key="i" class="cast-cell">
           <div class="cell-head">
             <span>{{ GUAS[i] }}</span>
@@ -1076,17 +1376,17 @@ function formatTime(iso: string): string {
 
     <section ref="boardEl" class="board-panel">
       <template v-if="chart">
-        <header class="board-head fade-in">
+        <header v-if="liuyaoPayload" class="board-head fade-in">
           <div class="gua-block">
             <div class="gua-kicker">
-              本卦 · {{ chart.payload.palace }} · {{ chart.payload.rank }} · 宫五行 {{ chart.payload.palace_wuxing }}
+              本卦 · {{ liuyaoPayload.palace }} · {{ liuyaoPayload.rank }} · 宫五行 {{ liuyaoPayload.palace_wuxing }}
             </div>
-            <h2>{{ chart.payload.gua_name }}</h2>
+            <h2>{{ liuyaoPayload.gua_name }}</h2>
           </div>
-          <div v-if="chart.payload.changed_gua" class="gua-change">
+          <div v-if="liuyaoPayload.changed_gua" class="gua-change">
             <span>之</span>
-            <strong>{{ chart.payload.changed_gua }}</strong>
-            <em>{{ chart.payload.changed_palace }}</em>
+            <strong>{{ liuyaoPayload.changed_gua }}</strong>
+            <em>{{ liuyaoPayload.changed_palace }}</em>
           </div>
           <div v-else class="gua-change is-quiet">
             <span>六爻安静</span>
@@ -1094,20 +1394,66 @@ function formatTime(iso: string): string {
           </div>
         </header>
 
+        <header v-else-if="daLiuRenPayload" class="board-head fade-in">
+          <div class="gua-block">
+            <div class="gua-kicker">
+              大六壬 · {{ daLiuRenPayload.month_general.zhi }}将 · {{ daLiuRenPayload.hour_zhi }}时
+            </div>
+            <h2>{{ daLiuRenPayload.ke_ti }}</h2>
+          </div>
+          <div class="gua-change">
+            <span>三传</span>
+            <strong>{{ daLiuRenPayload.san_chuan.map((c) => c.branch).join(' → ') }}</strong>
+            <em>{{ daLiuRenPayload.gate }}课</em>
+          </div>
+        </header>
+
+        <header v-else-if="ziWeiPayload" class="board-head fade-in">
+          <div class="gua-block">
+            <div class="gua-kicker">
+              紫微斗数 · {{ ziWeiPayload.lunar_date }}
+            </div>
+            <h2>{{ ziWeiPayload.ming_gong }}宫命</h2>
+          </div>
+          <div class="gua-change">
+            <span>身宫</span>
+            <strong>{{ ziWeiPayload.shen_gong }}宫</strong>
+            <em>{{ ziWeiPayload.wu_xing_ju }} · 紫微在{{ ziWeiPayload.ziwei_pos }}</em>
+          </div>
+        </header>
+
         <div class="board-meta fade-in">
-          <span>月建 <b>{{ chart.payload.month_gz }}</b></span>
-          <span>日辰 <b>{{ chart.payload.day_gz }}</b></span>
-          <span>旬空 <b>{{ chart.payload.xun_kong.join('、') }}</b></span>
-          <span>宫五行 <b>{{ chart.payload.palace_wuxing }}</b></span>
+          <template v-if="liuyaoPayload">
+            <span>月建 <b>{{ liuyaoPayload.month_gz }}</b></span>
+            <span>日辰 <b>{{ liuyaoPayload.day_gz }}</b></span>
+            <span>旬空 <b>{{ liuyaoPayload.xun_kong.join('、') }}</b></span>
+            <span>宫五行 <b>{{ liuyaoPayload.palace_wuxing }}</b></span>
+          </template>
+          <template v-else-if="daLiuRenPayload">
+            <span>日 <b>{{ daLiuRenPayload.day_gan }}{{ daLiuRenPayload.day_zhi }}</b></span>
+            <span>时 <b>{{ daLiuRenPayload.hour_zhi }}</b></span>
+            <span>月将 <b>{{ daLiuRenPayload.month_general.zhi }}</b></span>
+            <span>旬空 <b>{{ daLiuRenPayload.xun_kong.join('、') }}</b></span>
+            <span>课体 <b>{{ daLiuRenPayload.gate }}</b></span>
+          </template>
+          <template v-else-if="ziWeiPayload">
+            <span>命宫 <b>{{ ziWeiPayload.ming_gong }}</b></span>
+            <span>身宫 <b>{{ ziWeiPayload.shen_gong }}</b></span>
+            <span>五行局 <b>{{ ziWeiPayload.wu_xing_ju }}</b></span>
+            <span>紫微 <b>{{ ziWeiPayload.ziwei_pos }}</b></span>
+            <span>天府 <b>{{ ziWeiPayload.tianfu_pos }}</b></span>
+          </template>
           <span>引擎 <b>{{ chart.engine_version }}</b></span>
-          <span class="scroll-hint">盘面可左右滑动查看变卦</span>
+          <span class="scroll-hint">{{ liuyaoPayload ? '盘面可左右滑动查看变卦' : '盘面可左右滑动查看' }}</span>
         </div>
 
         <div class="board-scroll">
-          <LiuYaoBoard :payload="chart.payload" :revealed="boardRevealed" />
+          <LiuYaoBoard v-if="liuyaoPayload" :payload="liuyaoPayload" :revealed="boardRevealed" />
+          <DaLiuRenBoard v-else-if="daLiuRenPayload" :payload="daLiuRenPayload" />
+          <ZiWeiBoard v-else-if="ziWeiPayload" :payload="ziWeiPayload" />
         </div>
 
-        <div v-if="chart.entropy || mode === 'coin'" class="entropy">
+        <div v-if="liuyaoPayload && (chart.entropy || mode === 'coin')" class="entropy">
           <b>本次摇卦记录</b>
           <span>背数 {{ chart.entropy ? chart.entropy.backs.join('、') : localBacks.join('、') }}</span>
           <span v-if="chart.entropy">校验 {{ chart.entropy.entropy_proof.slice(0, 16) }}…</span>
@@ -1116,7 +1462,7 @@ function formatTime(iso: string): string {
         </div>
       </template>
 
-      <div v-else-if="tosses.length" class="partial-board">
+      <div v-else-if="method === 'liuyao' && tosses.length" class="partial-board">
         <div class="partial-seal">
           <div class="partial-count"><b>{{ tosses.length }}</b><em>/ 6</em></div>
           <span>已摇</span>
@@ -1155,21 +1501,32 @@ function formatTime(iso: string): string {
       </div>
 
       <div v-else class="empty-board">
-        <div class="empty-seal">未占</div>
+        <div class="empty-seal">{{ method === 'daliuren' ? '未课' : method === 'ziwei' ? '未盘' : '未占' }}</div>
         <div class="empty-copy">
-          <p class="empty-hint">心诚则灵 · 先问一事</p>
+          <p class="empty-hint">
+            {{ method === 'daliuren' ? '定此刻 · 起一课' : method === 'ziwei' ? '填生辰 · 安一盘' : '心诚则灵 · 先问一事' }}
+          </p>
           <ol class="empty-steps">
             <li>
               <i>一</i>
-              <div><b>问事</b><em>问题越具体，盘越好读</em></div>
+              <div>
+                <b>{{ method === 'daliuren' ? '定时' : method === 'ziwei' ? '生辰' : '问事' }}</b>
+                <em>{{ method === 'daliuren' ? '月将加时，课随刻转' : method === 'ziwei' ? '公历农历皆可，闰月有口径' : '问题越具体，盘越好读' }}</em>
+              </div>
             </li>
             <li>
               <i>二</i>
-              <div><b>摇卦</b><em>六次铜钱，自下而上</em></div>
+              <div>
+                <b>{{ method === 'daliuren' ? '成课' : method === 'ziwei' ? '安星' : '摇卦' }}</b>
+                <em>{{ method === 'daliuren' ? '四课三传，十二天将' : method === 'ziwei' ? '命身十二宫，主辅四化' : '六次铜钱，自下而上' }}</em>
+              </div>
             </li>
             <li>
               <i>三</i>
-              <div><b>断卦</b><em>盘面即事实，AI 只负责说人话</em></div>
+              <div>
+                <b>{{ method === 'daliuren' ? '断课' : method === 'ziwei' ? '读盘' : '断卦' }}</b>
+                <em>盘面即事实，AI 只负责说人话</em>
+              </div>
             </li>
           </ol>
         </div>
@@ -1222,7 +1579,7 @@ function formatTime(iso: string): string {
           <p v-else class="reading-note">暂无断语。</p>
         </article>
         <article class="reading-block">
-          <h3><span class="num">三</span>应期与建议</h3>
+          <h3><span class="num">三</span>{{ method === 'ziwei' ? '大限与建议' : '应期与建议' }}</h3>
           <template v-if="readingSections.timing || readingSections.advice">
             <div v-if="readingSections.timing" class="ai-field">
               <label>应期与走向</label>
@@ -1234,8 +1591,8 @@ function formatTime(iso: string): string {
             </div>
           </template>
           <p v-else-if="readingBusy" class="reading-note">正在解读…</p>
-          <p v-else-if="reading.status === 'error'" class="reading-note">解读失败后暂无应期与建议。</p>
-          <p v-else class="reading-note">暂无应期与建议。</p>
+          <p v-else-if="reading.status === 'error'" class="reading-note">解读失败后暂无{{ method === 'ziwei' ? '大限与建议' : '应期与建议' }}。</p>
+          <p v-else class="reading-note">暂无{{ method === 'ziwei' ? '大限与建议' : '应期与建议' }}。</p>
         </article>
       </div>
 
@@ -1257,7 +1614,7 @@ function formatTime(iso: string): string {
       <header class="followup-head">
         <span class="seal">问</span>
         <h2>同盘追问</h2>
-        <em v-if="followupReady">沿这张盘继续，不另起卦</em>
+        <em v-if="followupReady">沿这张{{ method === 'liuyao' ? '卦' : method === 'daliuren' ? '课' : '盘' }}继续，不另起{{ method === 'liuyao' ? '卦' : method === 'daliuren' ? '课' : '盘' }}</em>
         <em v-else-if="followupUnlocked">已追问 {{ MAX_FOLLOWUPS }} 轮</em>
         <em v-else>{{ followupLockedText }}</em>
       </header>
@@ -1282,7 +1639,7 @@ function formatTime(iso: string): string {
           </article>
         </div>
         <p v-else class="followup-empty">
-          首轮四段已经在上面。可以接着问应期为什么落在那个节点、某条断语对应哪一爻，或问清一个具体细节。
+          首轮四段已经在上面。可以接着问断语为什么落在那个节点、某条判断对应盘面的哪一处，或问清一个具体细节。
         </p>
 
         <div v-if="followupReady" class="followup-compose">
@@ -1307,7 +1664,7 @@ function formatTime(iso: string): string {
           </div>
         </div>
         <p v-else class="followup-locked">
-          这张盘已追问 {{ MAX_FOLLOWUPS }} 轮，建议另起一卦；追问记录已留在卦历。
+          这张盘已追问 {{ MAX_FOLLOWUPS }} 轮，建议另起一{{ chartUnit }}；追问记录已留在卦历。
         </p>
         <p v-if="followupError" class="followup-error-line">{{ followupError }}</p>
       </template>
@@ -1323,8 +1680,8 @@ function formatTime(iso: string): string {
         <span>已藏</span>
       </div>
       <div class="case-seal-copy">
-        <span class="case-seal-kicker">卷一 · 六爻</span>
-        <strong>此卦已收入卦历</strong>
+        <span class="case-seal-kicker">{{ methodMeta.volume }} · {{ methodLabel }}</span>
+        <strong>此{{ chartUnit }}已收入卦历</strong>
         <p>
           {{ chart?.payload.gua_name }} · {{ formatTime(currentArchiveEntry.saved_at) }} ·
           第 {{ currentCaseOrdinal }} 则
@@ -1343,7 +1700,7 @@ function formatTime(iso: string): string {
         key="archive"
         :entries="archive"
         @open="openArchive"
-        @cast="navigate('cast')"
+        @cast="startMethod('liuyao')"
         @home="navigate('home')"
         @delete="deleteArchiveEntry"
         @clear="clearArchive"
@@ -1353,7 +1710,7 @@ function formatTime(iso: string): string {
       <GameCodex
         v-else
         key="codex"
-        @cast="navigate('cast')"
+        @cast="startMethod"
         @home="navigate('home')"
       />
 

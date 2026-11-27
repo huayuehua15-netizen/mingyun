@@ -53,6 +53,38 @@ function statusClass(entry: ArchiveEntry): string {
   return 'is-ai'
 }
 
+function methodLabel(entry: ArchiveEntry): string {
+  switch (entry.method || entry.chart.method) {
+    case 'daliuren':
+      return '大六壬'
+    case 'ziwei':
+      return '紫微'
+    default:
+      return '六爻'
+  }
+}
+
+function titleOf(entry: ArchiveEntry): string {
+  if (entry.title) return entry.title
+  if (entry.gua_name) return entry.gua_name
+  switch (entry.method || entry.chart.method) {
+    case 'daliuren':
+      return entry.chart.payload && 'ke_ti' in entry.chart.payload ? entry.chart.payload.ke_ti : '大六壬课'
+    case 'ziwei':
+      return entry.chart.payload && 'wu_xing_ju' in entry.chart.payload
+        ? `${entry.chart.payload.ming_gong}宫 · ${entry.chart.payload.wu_xing_ju}`
+        : '紫微命盘'
+    default:
+      return '未名盘'
+  }
+}
+
+function subtitleOf(entry: ArchiveEntry): string {
+  if (entry.subtitle) return entry.subtitle
+  if (entry.changed_gua) return '之 ' + entry.changed_gua
+  return methodLabel(entry)
+}
+
 function followupCount(entry: ArchiveEntry): number {
   return (entry.followups ?? []).filter(
     (turn) => turn.role === 'assistant' && turn.status === 'done'
@@ -107,8 +139,11 @@ const filteredEntries = computed(() => {
     if (!keyword) return true
     const haystack = [
       entry.question,
+      entry.title,
       entry.gua_name,
+      entry.subtitle,
       entry.changed_gua,
+      entry.method,
       entry.topic_label,
       entry.model,
       entry.reading,
@@ -163,7 +198,7 @@ function requestClear() {
     <header class="scene-bar scene-bar--page">
       <button class="scene-back" @click="$emit('home')">← 山门</button>
       <div class="scene-heading">
-        <span>卷二 · 藏</span>
+        <span>藏 · 卦历</span>
         <h1>卦历</h1>
       </div>
       <div class="archive-count"><b>{{ entries.length }}</b><span>则</span></div>
@@ -171,7 +206,7 @@ function requestClear() {
 
     <div v-if="entries.length" class="archive-body">
       <p class="archive-intro">
-        每次起卦自动留档，完整盘面、用神与当时解读都收在这里；点一则展开详情。只存本机，不上传服务端。
+        每次起盘自动留档，完整盘面、关键事实与当时解读都收在这里；点一则展开详情。只存本机，不上传服务端。
       </p>
 
       <div class="archive-main-column">
@@ -205,8 +240,8 @@ function requestClear() {
               <span class="archive-no">{{ String(i + 1).padStart(2, '0') }}</span>
               <div class="archive-main">
                 <h2>
-                  {{ entry.gua_name }}
-                  <i v-if="entry.changed_gua">→ {{ entry.changed_gua }}</i>
+                  {{ titleOf(entry) }}
+                  <i>{{ subtitleOf(entry) }}</i>
                 </h2>
                 <p>{{ entry.question || '未记所问之事' }}</p>
                 <em v-if="entry.topic_label">{{ entry.topic_label }}</em>
@@ -250,7 +285,7 @@ function requestClear() {
 
         <div v-if="entries[0]" class="archive-latest">
           <span class="side-kicker">最近一卦</span>
-          <h3>{{ entries[0].gua_name }}</h3>
+          <h3>{{ titleOf(entries[0]) }}</h3>
           <p>{{ entries[0].question || '未记所问之事' }}</p>
           <dl>
             <div>

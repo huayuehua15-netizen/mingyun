@@ -12,8 +12,10 @@ import (
 
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/ai"
 	"github.com/huayuehua15-netizen/mingyun/apps/api/internal/store"
+	"github.com/huayuehua15-netizen/mingyun/paipan/daliuren"
 	"github.com/huayuehua15-netizen/mingyun/paipan/liuyao"
 	"github.com/huayuehua15-netizen/mingyun/paipan/schema"
+	"github.com/huayuehua15-netizen/mingyun/paipan/ziwei"
 )
 
 const maxFollowupRounds = 6
@@ -49,7 +51,7 @@ func (s *Server) handleFollowup(w http.ResponseWriter, r *http.Request) {
 	rec, found := s.store.Get(id)
 	if !found {
 		if req.Chart == nil || len(req.Chart.Facts) == 0 || req.Chart.Payload == nil {
-			writeAPIError(w, r, &apiError{Status: http.StatusNotFound, Code: 10301, Message: "盘面不存在或已失效，请重新起卦"})
+			writeAPIError(w, r, &apiError{Status: http.StatusNotFound, Code: 10301, Message: "盘面不存在或已失效，请重新起卦/起课/排盘"})
 			return
 		}
 		if req.Chart.ChartID != "" && req.Chart.ChartID != id {
@@ -86,7 +88,7 @@ func (s *Server) handleFollowup(w http.ResponseWriter, r *http.Request) {
 
 	history, userTurns := normalizeFollowupHistory(req.History)
 	if userTurns >= maxFollowupRounds {
-		writeAPIError(w, r, badRequest("这张盘已追问 6 轮，建议另起一卦", map[string]string{"history": "round limit"}))
+		writeAPIError(w, r, badRequest("这张盘已追问 6 轮，建议另起一卦/课/盘", map[string]string{"history": "round limit"}))
 		return
 	}
 
@@ -217,17 +219,47 @@ func restoreChartFacts(chart *schema.Chart) error {
 	if err != nil {
 		return err
 	}
-	var payload liuyao.Payload
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return err
+
+	switch chart.Method {
+	case schema.MethodDaLiuRen:
+		var payload daliuren.Payload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return err
+		}
+		if len(payload.TianPan) != 12 || len(payload.SiKe) != 4 || len(payload.SanChuan) != 3 {
+			return errors.New("大六壬盘面快照不完整")
+		}
+		facts := daliuren.BuildFacts(payload)
+		if len(facts) == 0 {
+			return errors.New("大六壬盘面快照重建 facts 为空")
+		}
+		chart.Facts = facts
+	case schema.MethodZiWei:
+		var payload ziwei.Payload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return err
+		}
+		if len(payload.Palaces) != 12 || !payload.MingGong.Valid() {
+			return errors.New("紫微盘面快照不完整")
+		}
+		facts := ziwei.BuildFacts(payload)
+		if len(facts) == 0 {
+			return errors.New("紫微盘面快照重建 facts 为空")
+		}
+		chart.Facts = facts
+	default:
+		var payload liuyao.Payload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return err
+		}
+		if payload.GuaName == "" || len(payload.Lines) == 0 {
+			return errors.New("盘面快照缺少卦名或六爻")
+		}
+		facts := liuyao.BuildFacts(payload)
+		if len(facts) == 0 {
+			return errors.New("盘面快照重建 facts 为空")
+		}
+		chart.Facts = facts
 	}
-	if payload.GuaName == "" || len(payload.Lines) == 0 {
-		return errors.New("盘面快照缺少卦名或六爻")
-	}
-	facts := liuyao.BuildFacts(payload)
-	if len(facts) == 0 {
-		return errors.New("盘面快照重建 facts 为空")
-	}
-	chart.Facts = facts
 	return nil
 }
