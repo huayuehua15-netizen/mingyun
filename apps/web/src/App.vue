@@ -76,20 +76,31 @@ const followupThreadEl = ref<HTMLElement | null>(null)
 let followupAbort: AbortController | null = null
 let followupSeq = 0
 
-const followupUsed = computed(() => followups.value.filter((turn) => turn.role === 'user').length)
+const followupUsed = computed(() =>
+  followups.value.reduce((total, turn, index) => {
+    if (turn.role !== 'user') return total
+    const answer = followups.value[index + 1]
+    // 失败的一问一答不占轮次，允许就地重试。
+    if (answer?.role === 'assistant' && answer.status === 'error') return total
+    return total + 1
+  }, 0)
+)
 
-const followupReady = computed(
+const followupUnlocked = computed(
   () =>
     !!chart.value &&
     reading.value.status === 'done' &&
     reading.value.mode === 'ai' &&
-    !!reading.value.text.trim() &&
-    followupUsed.value < MAX_FOLLOWUPS
+    !!reading.value.text.trim()
+)
+
+const followupReady = computed(
+  () => followupUnlocked.value && followupUsed.value < MAX_FOLLOWUPS
 )
 
 const followupLockedText = computed(() => {
   if (!chart.value) return '先起一卦，再沿这张盘追问。'
-  if (followupUsed.value >= MAX_FOLLOWUPS) return '这张盘已追问 6 轮，建议另起一卦。'
+  if (followupUsed.value >= MAX_FOLLOWUPS) return `这张盘已追问 ${MAX_FOLLOWUPS} 轮，建议另起一卦。`
   if (readingBusy.value) return '首轮解读完成后，可以沿这张盘继续追问。'
   if (reading.value.status === 'error') return '首轮解读失败；修复后可继续追问。'
   if (reading.value.mode === 'offline') return '当前是离线摘要，未配置模型；配置后可沿原盘追问。'
@@ -644,16 +655,25 @@ function lineState(v: string): string {
 }
 
 function buildFollowupHistory(): { role: 'user' | 'assistant'; content: string }[] {
-  const history: { role: 'user' | 'assistant'; content: string }[] = []
+  const opening: { role: 'user' | 'assistant'; content: string }[] = []
   if (reading.value.text.trim()) {
-    history.push({ role: 'assistant', content: reading.value.text.trim() })
+    opening.push({ role: 'assistant', content: reading.value.text.trim() })
   }
-  for (const turn of followups.value) {
-    const content = turn.content.trim()
-    if (!content || turn.status === 'streaming' || turn.status === 'error') continue
-    history.push({ role: turn.role, content })
+  const turns: { role: 'user' | 'assistant'; content: string }[] = []
+  for (let i = 0; i < followups.value.length; i += 1) {
+    const question = followups.value[i]
+    const answer = followups.value[i + 1]
+    if (question.role !== 'user' || !question.content.trim()) continue
+    if (!answer || answer.role !== 'assistant' || answer.status !== 'done' || !answer.content.trim()) {
+      continue
+    }
+    turns.push({ role: 'user', content: question.content.trim() })
+    turns.push({ role: 'assistant', content: answer.content.trim() })
+    i += 1
   }
-  return history.slice(-10)
+  // 首轮解读是同一张盘的基准，不能因为追问轮次多而被截掉。
+  // 6 轮上限内最多 1 条首轮 + 10 条追问，服务端最多接收 12 条。
+  return [...opening, ...turns.slice(-(12 - opening.length))]
 }
 
 function saveFollowups() {
@@ -1163,7 +1183,7 @@ function formatTime(iso: string): string {
         <em>{{ readingStatusText }}</em>
         <button
           class="reading-refresh"
-          :disabled="readingBusy"
+          :disabled="readingBusy || followupBusy"
           @click="startReading"
         >
           {{ reading.status === 'error' ? '重试' : '重新解读' }}
@@ -1238,10 +1258,11 @@ function formatTime(iso: string): string {
         <span class="seal">问</span>
         <h2>同盘追问</h2>
         <em v-if="followupReady">沿这张盘继续，不另起卦</em>
+        <em v-else-if="followupUnlocked">已追问 {{ MAX_FOLLOWUPS }} 轮</em>
         <em v-else>{{ followupLockedText }}</em>
       </header>
 
-      <template v-if="followupReady">
+      <template v-if="followupUnlocked">
         <div v-if="followups.length" ref="followupThreadEl" class="followup-thread">
           <article
             v-for="turn in followups"
@@ -1264,7 +1285,7 @@ function formatTime(iso: string): string {
           首轮四段已经在上面。可以接着问应期为什么落在那个节点、某条断语对应哪一爻，或问清一个具体细节。
         </p>
 
-        <div class="followup-compose">
+        <div v-if="followupReady" class="followup-compose">
           <textarea
             v-model="followupInput"
             rows="2"
@@ -1285,6 +1306,9 @@ function formatTime(iso: string): string {
             </button>
           </div>
         </div>
+        <p v-else class="followup-locked">
+          这张盘已追问 {{ MAX_FOLLOWUPS }} 轮，建议另起一卦；追问记录已留在卦历。
+        </p>
         <p v-if="followupError" class="followup-error-line">{{ followupError }}</p>
       </template>
     </section>

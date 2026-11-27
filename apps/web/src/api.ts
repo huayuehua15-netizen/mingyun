@@ -104,7 +104,7 @@ async function streamSSE(
     }
     throw new Error(message)
   }
-  if (!res.body) throw new Error('解读接口没有返回流')
+  if (!res.body) throw new Error('接口没有返回流')
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()

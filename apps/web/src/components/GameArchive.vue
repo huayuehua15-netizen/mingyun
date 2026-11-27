@@ -53,6 +53,12 @@ function statusClass(entry: ArchiveEntry): string {
   return 'is-ai'
 }
 
+function followupCount(entry: ArchiveEntry): number {
+  return (entry.followups ?? []).filter(
+    (turn) => turn.role === 'assistant' && turn.status === 'done'
+  ).length
+}
+
 function formatTime(iso: string): string {
   if (!iso) return ''
   const date = new Date(iso)
@@ -205,10 +211,10 @@ function requestClear() {
                 <p>{{ entry.question || '未记所问之事' }}</p>
                 <em v-if="entry.topic_label">{{ entry.topic_label }}</em>
                 <em
-                  v-if="entry.followups?.some((turn) => turn.role === 'user')"
+                  v-if="followupCount(entry)"
                   class="archive-followup-count"
                 >
-                  含 {{ entry.followups.filter((turn) => turn.role === 'user').length }} 轮追问
+                  含 {{ followupCount(entry) }} 轮追问
                 </em>
               </div>
               <div class="archive-meta">

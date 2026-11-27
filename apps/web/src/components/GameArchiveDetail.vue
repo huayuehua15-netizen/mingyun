@@ -123,7 +123,10 @@ const lines = computed(() => [...props.entry.chart.payload.lines].sort((a, b) =>
 const reading = computed(() => parseReading(props.entry.reading))
 const followupTurns = computed(() => props.entry.followups ?? [])
 const followupRounds = computed(
-  () => followupTurns.value.filter((turn) => turn.role === 'user').length
+  () =>
+    followupTurns.value.filter(
+      (turn) => turn.role === 'assistant' && turn.status === 'done'
+    ).length
 )
 </script>
 

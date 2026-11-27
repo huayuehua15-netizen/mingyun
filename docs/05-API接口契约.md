@@ -143,7 +143,8 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
 
 - `message` 必填，≤200 字；`history` 只带最近对话，服务端限最近 12 条、每条截断到 2500 字。
 - 当前实现只落地 `POST /charts/{id}/messages`；`GET /charts/{id}/messages`、反馈与重连缓冲仍在路线图。
-- 追问仍走同一套 SSE `meta / delta / usage / done / error`，但输出不要求四段标题；服务端用 `AuditFollowup` 做事实硬校验，超过 6 轮返回 400。
+- 追问仍走同一套 SSE `meta / delta / usage / done / error`，但输出不要求四段标题；服务端用 `AuditFollowup` 做事实硬校验。
+- 轮次按成功完成的问答计：模型报错或审计拦截时，前端不把这一问计入 6 轮，可在原盘直接重试；服务端按 `history` 里的用户轮次校验，超过 6 轮返回 400。
 
 **SSE 事件契约**
 
