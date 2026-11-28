@@ -299,7 +299,7 @@ HTTP 状态码同时使用：400 参数错误、401 未认证、403 无权限、
 | DELETE | `/settings/ai` | 删除 `data/ai-settings.json`，回退 `MINGYUN_AI_*` |
 | POST | `/settings/ai/test` | 30 秒超时连接测试，最多 24 token，返回延迟与预览 |
 
-`GET` 的关键字段：`enabled`、`provider_id`、`provider_name`、`provider`、`model`、`base_url`、`has_key`、`key_hint`、`temperature`、`max_tokens`、`timeout_seconds`、`source`（`file / env / none`）、`writable`、`presets`。
+`GET` 的关键字段：`enabled`、`provider_id`、`provider_name`、`provider`、`model`、`base_url`、`has_key`、`key_hint`、`key_encrypted`、`temperature`、`max_tokens`、`timeout_seconds`、`source`（`file / env / none`）、`writable`、`presets`。
 
 `PUT` 的校验：
 

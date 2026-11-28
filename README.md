@@ -90,11 +90,11 @@
 
 模型：网页里直接选服务商、填 Key 与模型名，测试连通后保存；保存后立即热切换，不需要重启 API。网页保存的 Key 只留在服务端 `data/ai-settings.json`（0600），页面只显示末四位；未保存时可由环境变量提供。
 
-<img src="docs/preview/model-settings.png" width="760" alt="模型中心：当前炉火与服务商预置">
+<img src="docs/preview/model-settings-encrypted.png" width="760" alt="模型中心：当前炉火、服务商预置与 AES-GCM 标记">
 <img src="docs/preview/model-settings-test.png" width="760" alt="模型连接测试成功">
-<img src="docs/preview/model-settings-saved.png" width="760" alt="保存并启用后的封存提示">
+<img src="docs/preview/model-settings-encrypted-bottom.png" width="760" alt="Key 表单与加密落盘守则">
 <img src="docs/preview/model-settings-custom.png" width="760" alt="自定义 OpenAI 兼容接口">
-<img src="docs/preview/model-settings-mobile.png" width="330" alt="移动端模型中心">
+<img src="docs/preview/model-settings-encrypted-mobile.png" width="330" alt="移动端模型中心">
 
 早期纸本界面的未占态与逐爻生长：
 
@@ -198,7 +198,8 @@ go build -o ../bin/mingyun ./cmd/mingyun
 
 Key 的处理：
 
-- 网页保存的 Key 只写服务端 `data/ai-settings.json`，文件权限 `0600`、目录 `0700`；页面只显示 `••••` 末四位，不把明文 Key 写进浏览器。环境变量提供的 Key 不落盘。
+- 网页保存的 Key 以 AES-256-GCM 密文写入服务端 `data/ai-settings.json`，文件权限 `0600`、目录 `0700`；页面只显示 `••••` 末四位，不把明文 Key 写进浏览器。环境变量提供的 Key 不落盘。
+- 加密密钥优先从 `APP_SECRET` 派生；没有有效 `APP_SECRET` 时使用 `data/ai-settings.key` 本地密钥，两者都必须按密钥材料保管。
 - 换 Base URL 不会沿用旧服务商的 Key；同一个地址只改模型名时可以留空 Key。
 - 本地端点（`localhost` / `127.0.0.1` / `host.docker.internal`）允许不填 Key。
 - “撤去网页配置”会删掉文件并回退到环境变量，不会把已经部署好的 Key 一起清掉。
@@ -207,6 +208,7 @@ Key 的处理：
 
 | 变量 | 说明 | 默认 |
 |---|---|---|
+| `APP_SECRET` | 至少 16 字节；盘面熵源与 Key 加密密钥的派生源 | `.env` 占位值 |
 | `MINGYUN_DATA_DIR` | 数据目录；Docker 内为 `/data` | `data` |
 | `MINGYUN_MODEL_SETTINGS` | `off / false / 0 / readonly` 时设置页只读 | `on` |
 | `MINGYUN_AI_BASE_URL` | 例如 `https://api.deepseek.com/v1`、`http://host.docker.internal:11434/v1` | 空 |

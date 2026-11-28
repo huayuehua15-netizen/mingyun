@@ -1,8 +1,10 @@
 package ai
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -120,6 +122,181 @@ func TestSettingsStoreSaveReloadAndClear(t *testing.T) {
 	after := reloaded.View()
 	if after.Enabled || after.Source != "none" {
 		t.Fatalf("Clear 后 view = %+v", after)
+	}
+}
+
+func TestSettingsStoreEncryptsAPIKeyAtRest(t *testing.T) {
+	t.Setenv("MINGYUN_MODEL_SETTINGS", "on")
+	path := filepath.Join(t.TempDir(), "ai-settings.json")
+	apiKey := "sk-very-secret-123456"
+	store, err := NewSettingsStore(path, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPath := filepath.Join(filepath.Dir(path), settingsKeyFileName)
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(keyData) != settingsKeySize {
+		t.Fatalf("本地密钥长度 = %d, want %d", len(keyData), settingsKeySize)
+	}
+	if err := store.Update(Settings{
+		ProviderID:  "deepseek",
+		BaseURL:     "https://api.deepseek.com/v1",
+		APIKey:      apiKey,
+		Model:       "deepseek-chat",
+		Temperature: 0.3,
+		MaxTokens:   1200,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), apiKey) {
+		t.Fatal("ai-settings.json 不应包含明文 API Key")
+	}
+	var file settingsFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		t.Fatal(err)
+	}
+	if file.Version != settingsFileVersion {
+		t.Fatalf("配置文件版本 = %d, want %d", file.Version, settingsFileVersion)
+	}
+	if file.APIKeyCipher == "" || file.Settings.APIKey != "" {
+		t.Fatalf("加密字段不符合预期: %+v", file)
+	}
+
+	reloaded, err := NewSettingsStore(path, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reloaded.Config().APIKey; got != apiKey {
+		t.Fatalf("重载 Key = %q", got)
+	}
+	if !reloaded.View().KeyEncrypted {
+		t.Fatal("重载后应标记 Key 已加密")
+	}
+}
+
+func TestSettingsStoreAppSecretEncryption(t *testing.T) {
+	t.Setenv("MINGYUN_MODEL_SETTINGS", "on")
+	path := filepath.Join(t.TempDir(), "ai-settings.json")
+	secret := []byte("0123456789abcdef")
+	apiKey := "sk-app-secret-abcdef"
+	store, err := NewSettingsStoreWithSecret(path, Config{}, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(path), settingsKeyFileName)); !os.IsNotExist(err) {
+		t.Fatal("APP_SECRET 模式不应生成本地密钥文件")
+	}
+	if err := store.Update(Settings{
+		ProviderID: "deepseek",
+		BaseURL:    "https://api.deepseek.com/v1",
+		APIKey:     apiKey,
+		Model:      "deepseek-chat",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), apiKey) {
+		t.Fatal("APP_SECRET 模式下配置文件不应包含明文 Key")
+	}
+	reloaded, err := NewSettingsStoreWithSecret(path, Config{}, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reloaded.Config().APIKey; got != apiKey {
+		t.Fatalf("同 APP_SECRET 重载 Key = %q", got)
+	}
+	if _, err := NewSettingsStoreWithSecret(path, Config{}, []byte("fedcba9876543210")); err == nil {
+		t.Fatal("不同 APP_SECRET 不应解密成功")
+	}
+}
+
+func TestSettingsStoreMigratesLegacyPlaintext(t *testing.T) {
+	t.Setenv("MINGYUN_MODEL_SETTINGS", "on")
+	path := filepath.Join(t.TempDir(), "ai-settings.json")
+	legacyKey := "sk-legacy-plaintext"
+	legacy := settingsFile{
+		Version: 1,
+		Settings: Settings{
+			ProviderID: "deepseek",
+			BaseURL:    "https://api.deepseek.com/v1",
+			APIKey:     legacyKey,
+			Model:      "deepseek-chat",
+			MaxTokens:  1200,
+		},
+	}
+	raw, err := json.MarshalIndent(legacy, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := NewSettingsStore(path, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Config().APIKey; got != legacyKey {
+		t.Fatalf("迁移后内存 Key = %q", got)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), legacyKey) {
+		t.Fatal("迁移后文件不应保留明文 Key")
+	}
+	var migrated settingsFile
+	if err := json.Unmarshal(data, &migrated); err != nil {
+		t.Fatal(err)
+	}
+	if migrated.Version != settingsFileVersion || migrated.APIKeyCipher == "" {
+		t.Fatalf("迁移格式 = %+v", migrated)
+	}
+	reloaded, err := NewSettingsStore(path, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reloaded.Config().APIKey; got != legacyKey {
+		t.Fatalf("迁移后重载 Key = %q", got)
+	}
+}
+
+func TestSettingsStoreRejectsPlaintextV2(t *testing.T) {
+	t.Setenv("MINGYUN_MODEL_SETTINGS", "on")
+	path := filepath.Join(t.TempDir(), "ai-settings.json")
+	raw := []byte(`{
+  "version": 2,
+  "settings": {
+    "provider_id": "deepseek",
+    "base_url": "https://api.deepseek.com/v1",
+    "api_key": "sk-plain-v2-must-not-load",
+    "model": "deepseek-chat"
+  }
+}`)
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewSettingsStore(path, Config{}); err == nil || !strings.Contains(err.Error(), "仍含明文") {
+		t.Fatalf("version 2 明文配置应拒绝载入，err=%v", err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(after), "sk-plain-v2-must-not-load") {
+		t.Fatal("拒绝载入时不应改写原文件")
 	}
 }
 

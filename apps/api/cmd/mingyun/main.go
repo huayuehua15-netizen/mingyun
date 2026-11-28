@@ -370,7 +370,7 @@ func runServe(args []string) error {
 			return fmt.Errorf("生成临时密钥: %w", err)
 		}
 		secret = buf
-		fmt.Fprintln(os.Stderr, "警告：未设置 APP_SECRET（至少 16 字节），本次使用临时密钥；重启后 entropy_proof 将无法复核")
+		fmt.Fprintln(os.Stderr, "警告：未设置 APP_SECRET（至少 16 字节），熵源复核使用临时密钥；模型 Key 仍使用数据目录本地密钥")
 	}
 	es, err := entropy.NewSource(secret)
 	if err != nil {
@@ -390,7 +390,7 @@ func runServe(args []string) error {
 	if st != nil {
 		charts = st
 	}
-	settings, err := ai.NewSettingsStore(filepath.Join(dataDir, "ai-settings.json"), aiCfg)
+	settings, err := ai.NewSettingsStoreWithSecret(filepath.Join(dataDir, "ai-settings.json"), aiCfg, []byte(os.Getenv("APP_SECRET")))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "警告：模型配置无法载入，本次退化为内存配置：%v\n", err)
 		settings = ai.NewMemorySettings(aiCfg)

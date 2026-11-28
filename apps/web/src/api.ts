@@ -45,6 +45,7 @@ export interface AISettingsView {
   base_url: string
   has_key: boolean
   key_hint?: string
+  key_encrypted: boolean
   temperature: number
   max_tokens: number
   timeout_seconds: number

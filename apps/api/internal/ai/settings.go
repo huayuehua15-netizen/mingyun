@@ -1,8 +1,15 @@
 package ai
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -25,9 +32,19 @@ type Settings struct {
 }
 
 type settingsFile struct {
-	Version  int      `json:"version"`
-	Settings Settings `json:"settings"`
+	Version      int      `json:"version"`
+	Settings     Settings `json:"settings"`
+	APIKeyCipher string   `json:"api_key_cipher,omitempty"`
 }
+
+const (
+	settingsFileVersion    = 2
+	settingsKeySize        = 32
+	settingsKeyFileName    = "ai-settings.key"
+	settingsKeyContext     = "mingyun/ai-settings/v1"
+	settingsAAD            = "mingyun-ai-settings-v1"
+	insecureSettingsSecret = "change-me-in-production-please"
+)
 
 // AISettingsView 是设置接口与前端共用的只读快照，不含明文 Key。
 type AISettingsView struct {
@@ -39,6 +56,7 @@ type AISettingsView struct {
 	BaseURL        string           `json:"base_url"`
 	HasKey         bool             `json:"has_key"`
 	KeyHint        string           `json:"key_hint,omitempty"`
+	KeyEncrypted   bool             `json:"key_encrypted"`
 	Temperature    float64          `json:"temperature"`
 	MaxTokens      int              `json:"max_tokens"`
 	TimeoutSeconds int              `json:"timeout_seconds"`
@@ -60,10 +78,17 @@ type SettingsStore struct {
 	writable bool
 	current  Settings
 	source   string
+	key      []byte
 }
 
 // NewSettingsStore 读取已有配置文件；文件不存在时使用 fallback。
+// 没有传入 APP_SECRET 时，会在数据目录生成本地密钥文件，用于加密 API Key。
 func NewSettingsStore(path string, fallback Config) (*SettingsStore, error) {
+	return NewSettingsStoreWithSecret(path, fallback, nil)
+}
+
+// NewSettingsStoreWithSecret 使用 APP_SECRET 派生加密密钥；为空时回退本地密钥文件。
+func NewSettingsStoreWithSecret(path string, fallback Config, appSecret []byte) (*SettingsStore, error) {
 	timeout := fallback.Timeout
 	if timeout <= 0 {
 		timeout = defaultTimeout
@@ -78,6 +103,9 @@ func NewSettingsStore(path string, fallback Config) (*SettingsStore, error) {
 	}
 	if st.path == "" {
 		return st, nil
+	}
+	if err := st.initKey(appSecret); err != nil {
+		return nil, err
 	}
 	if err := st.load(); err != nil {
 		return nil, err
@@ -128,6 +156,119 @@ func modelSettingsWritable() bool {
 	}
 }
 
+func (s *SettingsStore) initKey(appSecret []byte) error {
+	secret := strings.TrimSpace(string(appSecret))
+	if len(secret) >= 16 && secret != insecureSettingsSecret {
+		s.key = deriveSettingsKey([]byte(secret))
+		return nil
+	}
+	dir := filepath.Dir(s.path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("创建模型配置目录: %w", err)
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return fmt.Errorf("收紧模型配置目录: %w", err)
+	}
+	keyPath := filepath.Join(dir, settingsKeyFileName)
+	data, err := os.ReadFile(keyPath)
+	if err == nil {
+		if len(data) != settingsKeySize {
+			return fmt.Errorf("本地模型密钥 %s 长度应为 %d 字节", keyPath, settingsKeySize)
+		}
+		s.key = append([]byte(nil), data...)
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("读取本地模型密钥 %s: %w", keyPath, err)
+	}
+	key := make([]byte, settingsKeySize)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		return fmt.Errorf("生成本地模型密钥: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, ".ai-settings-key-*.tmp")
+	if err != nil {
+		return fmt.Errorf("创建本地模型密钥临时文件: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if _, err := tmp.Write(key); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("写入本地模型密钥: %w", err)
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("设置本地模型密钥权限: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("关闭本地模型密钥: %w", err)
+	}
+	if err := os.Rename(tmpName, keyPath); err != nil {
+		return fmt.Errorf("保存本地模型密钥: %w", err)
+	}
+	s.key = key
+	return nil
+}
+
+func deriveSettingsKey(secret []byte) []byte {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(settingsKeyContext))
+	return mac.Sum(nil)
+}
+
+func (s *SettingsStore) encryptAPIKey(plain string) (string, error) {
+	if plain == "" {
+		return "", nil
+	}
+	if len(s.key) != settingsKeySize {
+		return "", fmt.Errorf("模型加密密钥未初始化")
+	}
+	block, err := aes.NewCipher(s.key)
+	if err != nil {
+		return "", err
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, aead.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", fmt.Errorf("生成模型密钥随机数: %w", err)
+	}
+	ciphertext := aead.Seal(nonce, nonce, []byte(plain), []byte(settingsAAD))
+	return base64.RawStdEncoding.EncodeToString(ciphertext), nil
+}
+
+func (s *SettingsStore) decryptAPIKey(encoded string) (string, error) {
+	if encoded == "" {
+		return "", nil
+	}
+	if len(s.key) != settingsKeySize {
+		return "", fmt.Errorf("模型加密密钥未初始化")
+	}
+	data, err := base64.RawStdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", fmt.Errorf("解析加密模型 Key: %w", err)
+	}
+	block, err := aes.NewCipher(s.key)
+	if err != nil {
+		return "", err
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonceSize := aead.NonceSize()
+	if len(data) < nonceSize {
+		return "", fmt.Errorf("加密模型 Key 长度不足")
+	}
+	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
+	plain, err := aead.Open(nil, nonce, ciphertext, []byte(settingsAAD))
+	if err != nil {
+		return "", fmt.Errorf("解密模型 Key 失败（APP_SECRET 或本地密钥不匹配）")
+	}
+	return string(plain), nil
+}
+
 func (s *SettingsStore) load() error {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
@@ -151,6 +292,21 @@ func (s *SettingsStore) load() error {
 	if sett.ProviderID == "" {
 		sett.ProviderID = InferProviderID(sett.BaseURL)
 	}
+	if file.Version >= settingsFileVersion {
+		if sett.APIKey != "" {
+			return fmt.Errorf("模型配置 %s 仍含明文 api_key，拒绝载入", s.path)
+		}
+		if file.APIKeyCipher != "" {
+			plain, err := s.decryptAPIKey(file.APIKeyCipher)
+			if err != nil {
+				return fmt.Errorf("载入模型配置 %s: %w", s.path, err)
+			}
+			sett.APIKey = plain
+		}
+	} else {
+		// v1 为历史明文格式：读入后立即重写为 AES-GCM 加密格式。
+		sett.APIKey = strings.TrimSpace(sett.APIKey)
+	}
 	if sett.Temperature < 0 || sett.Temperature > 2 {
 		sett.Temperature = defaultTemperature
 	}
@@ -165,6 +321,11 @@ func (s *SettingsStore) load() error {
 	}
 	s.current = sett
 	s.source = "file"
+	if file.Version < settingsFileVersion {
+		if err := s.persistLocked(); err != nil {
+			return fmt.Errorf("迁移模型配置 %s 为加密格式: %w", s.path, err)
+		}
+	}
 	return nil
 }
 
@@ -214,6 +375,7 @@ func (s *SettingsStore) View() AISettingsView {
 	source := s.source
 	writable := s.writable
 	updatedAt := sett.UpdatedAt
+	keyReady := len(s.key) == settingsKeySize
 	s.mu.RUnlock()
 
 	cfg := Config{
@@ -244,6 +406,7 @@ func (s *SettingsStore) View() AISettingsView {
 		BaseURL:        sett.BaseURL,
 		HasKey:         sett.APIKey != "",
 		KeyHint:        maskKey(sett.APIKey),
+		KeyEncrypted:   source == "file" && sett.APIKey != "" && keyReady,
 		Temperature:    sett.Temperature,
 		MaxTokens:      sett.MaxTokens,
 		TimeoutSeconds: int(s.timeout / time.Second),
@@ -348,7 +511,13 @@ func (s *SettingsStore) persistLocked() error {
 	if err := os.Chmod(dir, 0o700); err != nil {
 		return fmt.Errorf("收紧模型配置目录: %w", err)
 	}
-	data, err := json.MarshalIndent(settingsFile{Version: 1, Settings: s.current}, "", "  ")
+	apiKeyCipher, err := s.encryptAPIKey(s.current.APIKey)
+	if err != nil {
+		return err
+	}
+	persisted := s.current
+	persisted.APIKey = ""
+	data, err := json.MarshalIndent(settingsFile{Version: settingsFileVersion, Settings: persisted, APIKeyCipher: apiKeyCipher}, "", "  ")
 	if err != nil {
 		return err
 	}

@@ -237,7 +237,7 @@ onMounted(() => {
         </div>
         <dl class="settings-current-facts">
           <div><dt>来源</dt><dd>{{ sourceLabel }}</dd></div>
-          <div><dt>Key</dt><dd>{{ settings.has_key ? settings.key_hint : '未保存' }}</dd></div>
+          <div><dt>Key</dt><dd>{{ settings.has_key ? settings.key_hint : '未保存' }}<em v-if="settings.key_encrypted" class="settings-key-flag">AES-GCM</em></dd></div>
           <div><dt>温度</dt><dd>{{ settings.temperature }}</dd></div>
           <div><dt>输出上限</dt><dd>{{ settings.max_tokens }}</dd></div>
         </dl>
@@ -371,7 +371,7 @@ onMounted(() => {
 
         <aside class="settings-note">
           <span>三 · 守则</span>
-          <p>Key 由服务端持有（0600 文件或环境变量），网页只显示尾号；公开部署请加 HTTPS、反代鉴权与限流。</p>
+          <p>网页保存的 Key 以 AES-GCM 加密落盘（0600），环境变量 Key 不落盘；页面只显示尾号。公开部署请加 HTTPS、反代鉴权与限流。</p>
           <p>网页配置优先于 <code>MINGYUN_AI_*</code> 环境变量；撤去后回落到环境变量。</p>
           <div class="settings-danger" v-if="settings.source === 'file'">
             <button type="button" :disabled="clearing || !writable" @click="removeConfig">
